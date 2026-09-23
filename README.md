@@ -82,14 +82,14 @@ CCVR/
 - **Feature Extraction**: Extracts scale-invariant keypoints via SIFT (Scale-Invariant Feature Transform).
 - **Nearest Neighbor Matching**: Uses FLANN-based KD-tree matcher with 5 parallel trees and 50 search checks.
 - **Outlier Pruning**: Enforces Lowe's ratio test (`distance < 0.75 * second_distance`) to discard ambiguous matches.
-- **Geometric Transformation**: Computes homography matrix $H \in \mathbb{R}^{3 \times 3}$ using RANSAC with a 5.0-pixel reprojection error threshold.
+- **Geometric Transformation**: Computes 3×3 perspective homography matrix $H$ using RANSAC with a 5.0-pixel reprojection error threshold.
 - **Safety Gate**: Rejects alignment if inlier ratio falls below 25%, preventing artifact generation from seasonal drift or non-overlapping scenes.
 
 #### 3. `demo-for-3-models.py` — Deep Learning & Foundation Model Studio
 - **Hardware Acceleration**: Built for NVIDIA RTX 3050 (4GB/6GB VRAM) with PyTorch `torch.amp.autocast("cuda")` for low-latency FP16 inference.
 - **Model 1 (U-Net)**: ResNet-18 backbone pretrained on ImageNet for high-resolution semantic segmentation.
 - **Model 2 (DeepLabV3+)**: MobileNetV2 backbone leveraging Atrous Spatial Pyramid Pooling (ASPP) for multi-scale boundary extraction.
-- **Model 3 (NASA Prithvi-EO / ViT)**: IBM-NASA Geospatial Foundation Model backbone / Vision Transformer (16x16 patch projection), outputting spatial token activation heatmaps ($14 \times 14$ grid) and global `[CLS]` embedding statistics.
+- **Model 3 (NASA Prithvi-EO / ViT)**: IBM-NASA Geospatial Foundation Model backbone / Vision Transformer (16x16 patch projection), outputting spatial token activation heatmaps (14×14 grid) and global `[CLS]` embedding statistics.
 
 ---
 
@@ -104,25 +104,19 @@ CCVR/
 
 ### Tier 2: Academic Computer Vision Goals (Status: In Progress)
 - [ ] **Scene Classification & Masking**: Implement Sentinel-2 Scene Classification Layer (SCL) cloud and cloud-shadow masking.
-- [ ] **Multi-Spectral Indices**: Compute automated radiometric indices:
-  
-  $$\text{NDVI} = \frac{\text{B08} - \text{B04}}{\text{B08} + \text{B04}}, \quad \text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}, \quad \text{NDBI} = \frac{\text{B11} - \text{B08}}{\text{B11} + \text{B08}}$$
-
-- [ ] **Temporal Change Detection**: Compute bi-temporal difference matrices:
-  
-  $$\Delta(t_1, t_2) = \|\mathbf{E}_{t_2} - \mathbf{E}_{t_1}\|_2$$
-  
-  where $\mathbf{E}_t$ represents the latent spatial feature tensor extracted by the foundation encoder.
+- [ ] **Multi-Spectral Indices**: Automated radiometric index computation:
+  - $\text{NDVI} = \frac{\text{B08} - \text{B04}}{\text{B08} + \text{B04}}$ *(Normalized Difference Vegetation Index)*
+  - $\text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}$ *(Normalized Difference Water Index)*
+  - $\text{NDBI} = \frac{\text{B11} - \text{B08}}{\text{B11} + \text{B08}}$ *(Normalized Difference Built-up Index)*
+- [ ] **Temporal Change Detection**: Compute bi-temporal feature difference: $\Delta(t_1, t_2) = \|\mathbf{E}_{t_2} - \mathbf{E}_{t_1}\|_2$, where $\mathbf{E}_t$ represents the latent spatial feature tensor extracted by the foundation encoder.
 - [ ] **Novel Mathematical Gap**: Formulate an illumination-invariant or cloud-tolerant keypoint descriptor tailored for multi-spectral remote-sensing imagery across cross-seasonal acquisitions.
 
 ### Tier 3: Autonomous OSINT Platform & Predictive Earth Simulator (Status: Vision)
 - [ ] **OSINT Context Engine**: Autonomous agent pipeline querying news archives, municipal development permits, industrial registries, and energy footprint data for any coordinate bounding box.
 - [ ] **Multi-Modal Feature Fusion**: Project unstructured text and economic time-series indicators into joint latent space with satellite terrain embeddings.
-- [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) taking:
-  
-  $$\text{Satellite Mosaic}(t_0) + \text{Agent OSINT Embedding}(t_0 \to t_n) \longrightarrow \widehat{\text{Satellite State}}(t_n)$$
-  
-  synthesizing a high-fidelity visual prediction of future topography, urban encroachment, and environmental depletion.
+- [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) mapping:  
+  $\text{Satellite Mosaic}(t_0) + \text{Agent Context}(t_0 \to t_n) \longrightarrow \widehat{\text{Satellite State}}(t_n)$  
+  to synthesize a high-fidelity visual prediction of future topography, urban encroachment, and environmental depletion.
 
 ---
 
