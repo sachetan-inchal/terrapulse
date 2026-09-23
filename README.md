@@ -15,32 +15,32 @@
 To bridge academic rigor with frontier research, **TerraPulse** is organized into three distinct evolutionary tiers. This structure enables immediate evaluation of functional code while providing an expansive roadmap for advanced computer vision and multi-modal earth simulation.
 
 ```mermaid
-graph TD
-    subgraph Tier 1: Engineering Baseline [Functional / Implemented]
-        A[Planetary Computer STAC API] -->|Bypass Bandwidth / Windowing| B(Sentinel-2 L2A COGs)
-        B --> C[Cross-UTM CRS Reprojection]
-        C --> D[2x2 Spatial Mosaicking]
-        D --> E[SIFT + FLANN + RANSAC Homography Engine]
-        E --> F[Multi-Model Inference Studio: U-Net / DeepLabV3+ / Prithvi-EO ViT]
+flowchart TD
+    subgraph T1 ["Tier 1: Engineering Baseline (Functional / Implemented)"]
+        A["Planetary Computer STAC API"] -->|Bypass Bandwidth / Windowing| B["Sentinel-2 L2A COGs"]
+        B --> C["Cross-UTM CRS Reprojection"]
+        C --> D["2x2 Spatial Mosaicking"]
+        D --> E["SIFT + FLANN + RANSAC Homography Engine"]
+        E --> F["Multi-Model Inference Studio: U-Net / DeepLabV3+ / Prithvi-EO ViT"]
     end
 
-    subgraph Tier 2: Academic & CV Research [Active Development]
-        G[Multi-Spectral Indices: NDVI / NDWI / NDBI] --> H[SCL Cloud & Shadow Masking]
-        H --> I[Atmospheric Normalization & Alignment]
-        I --> J[Supervised Semantic Segmentation]
-        J --> K[Bi-Temporal Change Detection Heatmaps]
-        K --> L[Novel Mathematical Gap Proposal]
+    subgraph T2 ["Tier 2: Academic & CV Research (Active Development)"]
+        G["Multi-Spectral Indices: NDVI / NDWI / NDBI"] --> H["SCL Cloud & Shadow Masking"]
+        H --> I["Atmospheric Normalization & Alignment"]
+        I --> J["Supervised Semantic Segmentation"]
+        J --> K["Bi-Temporal Change Detection Heatmaps"]
+        K --> L["Novel Mathematical Gap Proposal"]
     end
 
-    subgraph Tier 3: Autonomous OSINT & World Model [Moonshot Vision]
-        M[Autonomous Geospatial Retrieval Agent] -->|News / Geopolitics / Industrial Registries| N[Context Vector Embeddings]
-        O[Current Satellite Mosaic] --> P[Conditional Generative Simulator / Diffusion]
+    subgraph T3 ["Tier 3: Autonomous OSINT & World Model (Moonshot Vision)"]
+        M["Autonomous Geospatial Retrieval Agent"] -->|News / Geopolitics / Industrial Registries| N["Context Vector Embeddings"]
+        O["Current Satellite Mosaic"] --> P["Conditional Generative Simulator / Diffusion"]
         N --> P
-        P --> Q[Synthesized Future Terrain State & Ecological Risk Forecast]
+        P --> Q["Synthesized Future Terrain State & Ecological Risk Forecast"]
     end
 
-    Tier 1 --> Tier 2
-    Tier 2 --> Tier 3
+    T1 --> T2
+    T2 --> T3
 ```
 
 ---
@@ -105,9 +105,13 @@ CCVR/
 ### Tier 2: Academic Computer Vision Goals (Status: In Progress)
 - [ ] **Scene Classification & Masking**: Implement Sentinel-2 Scene Classification Layer (SCL) cloud and cloud-shadow masking.
 - [ ] **Multi-Spectral Indices**: Compute automated radiometric indices:
+  
   $$\text{NDVI} = \frac{\text{B08} - \text{B04}}{\text{B08} + \text{B04}}, \quad \text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}, \quad \text{NDBI} = \frac{\text{B11} - \text{B08}}{\text{B11} + \text{B08}}$$
+
 - [ ] **Temporal Change Detection**: Compute bi-temporal difference matrices:
+  
   $$\Delta(t_1, t_2) = \|\mathbf{E}_{t_2} - \mathbf{E}_{t_1}\|_2$$
+  
   where $\mathbf{E}_t$ represents the latent spatial feature tensor extracted by the foundation encoder.
 - [ ] **Novel Mathematical Gap**: Formulate an illumination-invariant or cloud-tolerant keypoint descriptor tailored for multi-spectral remote-sensing imagery across cross-seasonal acquisitions.
 
@@ -115,7 +119,9 @@ CCVR/
 - [ ] **OSINT Context Engine**: Autonomous agent pipeline querying news archives, municipal development permits, industrial registries, and energy footprint data for any coordinate bounding box.
 - [ ] **Multi-Modal Feature Fusion**: Project unstructured text and economic time-series indicators into joint latent space with satellite terrain embeddings.
 - [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) taking:
+  
   $$\text{Satellite Mosaic}(t_0) + \text{Agent OSINT Embedding}(t_0 \to t_n) \longrightarrow \widehat{\text{Satellite State}}(t_n)$$
+  
   synthesizing a high-fidelity visual prediction of future topography, urban encroachment, and environmental depletion.
 
 ---
