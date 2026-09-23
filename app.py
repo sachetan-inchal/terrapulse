@@ -168,10 +168,10 @@ else:
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("Before")
-    st.image(img_before, use_container_width=True)
+    st.image(img_before, use_column_width=True)
 with col2:
     st.subheader("After")
-    st.image(img_after, use_container_width=True)
+    st.image(img_after, use_column_width=True)
 
 st.divider()
 st.header("1. Land-cover classification")
@@ -214,11 +214,11 @@ st.metric("Changed area", f"{changed_pct:.2f}%")
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.image(a_resized, caption="Before (resized)", use_container_width=True)
+    st.image(a_resized, caption="Before (resized)", use_column_width=True)
 with col2:
-    st.image(b_resized, caption="After (resized)", use_container_width=True)
+    st.image(b_resized, caption="After (resized)", use_column_width=True)
 with col3:
-    st.image(overlay_mask(b_resized, mask), caption="Change mask overlay (red)", use_container_width=True)
+    st.image(overlay_mask(b_resized, mask), caption="Change mask overlay (red)", use_column_width=True)
 
 st.caption(
     "Prototype scope: classification and change detection are trained on public, "
