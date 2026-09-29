@@ -37,6 +37,10 @@ python extras/cv_stitcher.py               # generates its own demo tiles
 python extras/cv_stitcher.py left.jpg right.jpg
 ```
 
+**Verified:** ran end-to-end on the self-generated synthetic tiles — 322
+Lowe's-ratio matches, 89.4% RANSAC inlier ratio, mosaic stitched and saved
+successfully.
+
 ## `stac_mosaic_app.py` — live Sentinel-2 2x2 mosaic streamer
 
 A Streamlit app that streams cloud-free Sentinel-2 L2A tiles directly from
@@ -50,6 +54,11 @@ something the main pipeline depends on to run.
 ```bash
 streamlit run extras/stac_mosaic_app.py
 ```
+
+**Verified:** ran live end-to-end (Swiss Alps preset) — connected to
+Planetary Computer, found 4 cloud-free Sentinel-2 tiles, streamed/
+reprojected/mosaicked them, and rendered the before/after grid in the UI
+with no errors.
 
 ## `model_studio_demo.py` — architecture playground (untrained)
 
@@ -70,3 +79,12 @@ ImageNet ViT so the tool still runs.
 ```bash
 python extras/model_studio_demo.py
 ```
+
+**Verified:** launched the Gradio server and called all three endpoints
+(`/run_unet`, `/run_deeplab`, `/run_prithvi`) via `gradio_client` on a real
+EuroSAT sample chip — all three returned valid output images with no
+errors. In this environment `transformers` requires PyTorch >= 2.5 (we
+pin 2.4.1 for the core pipeline's MPS support), so `AutoModel.from_pretrained`
+for Prithvi-EO raised as expected and the script's own fallback kicked in
+cleanly, confirmed by the returned log: *"Model Status: Operating via
+Vision Transformer (ViT) Foundation Backbone."*

@@ -135,17 +135,36 @@ into `extras/` as optional bonus tools:
   successfully.
 - `stac_mosaic_app.py` — Streamlit app streaming live Sentinel-2 tiles
   from Microsoft Planetary Computer's public STAC API (no account/API key
-  needed for the public catalog) and stitching a 2x2 mosaic. Not smoke
-  tested here (needs live network + `rasterio`/GDAL); kept as a clearly
-  optional/manual script per the build prompt's guardrail on live cloud
-  pipelines, not a pipeline dependency.
+  needed for the public catalog) and stitching a 2x2 mosaic. Kept as a
+  clearly optional/manual script per the build prompt's guardrail on live
+  cloud pipelines, not a pipeline dependency. **Later fully tested live**
+  (see below).
 - `model_studio_demo.py` — Gradio studio for inspecting U-Net/DeepLabV3+/
   Prithvi-EO(ViT) architectures on one image. Flagged clearly (in
   `extras/README.md` and in the file's own header) that the U-Net and
   DeepLabV3+ decoders are **randomly initialized**, not trained — this is
-  an architecture demo, not a second trained classifier. Not smoke tested
-  here (needs `segmentation-models-pytorch`, `timm`, `transformers`,
-  `gradio`, and a ~100M-param Hugging Face download).
+  an architecture demo, not a second trained classifier. **Later fully
+  tested** (see below).
+
+**Update, same day:** installed `extras/requirements-extras.txt` into the
+main venv and fully exercised the two tools not yet smoke tested above
+(pinned versions in that file updated to what actually installed/passed):
+- `stac_mosaic_app.py`: ran live in a browser, clicked "Fetch, Stitch &
+  Render Grid" for the Swiss Alps preset — connected to Planetary
+  Computer, found 4 cloud-free Sentinel-2 tiles, streamed + reprojected +
+  mosaicked them, rendered the before/after 2x2 grid with no errors.
+- `model_studio_demo.py`: launched the Gradio server and called all three
+  endpoints (`/run_unet`, `/run_deeplab`, `/run_prithvi`) via
+  `gradio_client` against a real EuroSAT sample image. All three returned
+  valid outputs. Note: in this environment `transformers` requires
+  PyTorch >= 2.5, but the core pipeline pins 2.4.1 for MPS support, so
+  `AutoModel.from_pretrained("ibm-nasa-geospatial/Prithvi-EO-1.0-100M")`
+  raised as expected and the script's own except-block fallback to a ViT
+  activated cleanly — confirmed via the returned status log. This is the
+  correct, intended behavior of the script's own fallback design, not a
+  bug introduced here.
+
+All three `extras/` tools are now verified working end to end.
 
 Integration was additive only: nothing in `src/`, `app.py`, `tests/`, or
 the core `requirements.txt` was changed or removed, and the main
