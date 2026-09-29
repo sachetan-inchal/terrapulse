@@ -123,6 +123,40 @@ outperforms it).**
 **Status: DONE — `streamlit run app.py` opens a working page demonstrating
 the full pipeline on the bundled example, no crashes.**
 
+## 2026-09-29 — Teammate integration: `extras/`
+
+Integrated a teammate's separate repo
+([sachetan-inchal/terrapulse](https://github.com/sachetan-inchal/terrapulse))
+into `extras/` as optional bonus tools:
+
+- `cv_stitcher.py` — classical SIFT + FLANN + RANSAC tile stitcher.
+  Self-contained (synthesizes its own demo tiles if none given). Smoke
+  tested: 89.4% RANSAC inlier ratio on the synthetic pair, mosaic saved
+  successfully.
+- `stac_mosaic_app.py` — Streamlit app streaming live Sentinel-2 tiles
+  from Microsoft Planetary Computer's public STAC API (no account/API key
+  needed for the public catalog) and stitching a 2x2 mosaic. Not smoke
+  tested here (needs live network + `rasterio`/GDAL); kept as a clearly
+  optional/manual script per the build prompt's guardrail on live cloud
+  pipelines, not a pipeline dependency.
+- `model_studio_demo.py` — Gradio studio for inspecting U-Net/DeepLabV3+/
+  Prithvi-EO(ViT) architectures on one image. Flagged clearly (in
+  `extras/README.md` and in the file's own header) that the U-Net and
+  DeepLabV3+ decoders are **randomly initialized**, not trained — this is
+  an architecture demo, not a second trained classifier. Not smoke tested
+  here (needs `segmentation-models-pytorch`, `timm`, `transformers`,
+  `gradio`, and a ~100M-param Hugging Face download).
+
+Integration was additive only: nothing in `src/`, `app.py`, `tests/`, or
+the core `requirements.txt` was changed or removed, and the main
+`README.md` had zero lines deleted (verified via `git diff`) — only a new
+"Optional extras" section and one project-layout line were added, per the
+teammate's request not to exclude any of that README's existing
+objectives. Extra dependencies live in their own
+`extras/requirements-extras.txt`, not the core `requirements.txt`, so
+`pip install -r requirements.txt` + the existing reproduction steps are
+unaffected. Full test suite re-run after integration: 5/5 passing.
+
 ## Scope note — what was explicitly NOT built, and why
 
 Per the build prompt's non-negotiable guardrails, none of the following

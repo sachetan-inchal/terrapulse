@@ -53,6 +53,16 @@ python -m src.train_change --mode unet --epochs 25 --batch-size 8
 streamlit run app.py
 ```
 
+## Optional extras (not part of the core pipeline)
+
+[`extras/`](extras/) contains bonus tools contributed by a teammate
+(originally at [sachetan-inchal/terrapulse](https://github.com/sachetan-inchal/terrapulse)):
+a classical SIFT/RANSAC tile stitcher, a live Sentinel-2 mosaic streamer
+(Microsoft Planetary Computer STAC API), and a Gradio architecture-demo
+studio (U-Net/DeepLabV3+/NASA Prithvi-EO). None of the above setup or
+reproduction steps depend on them — see [extras/README.md](extras/README.md)
+for what each one does and its own `pip install`.
+
 ## Project layout
 
 ```
@@ -67,6 +77,7 @@ earthwatch/
   checkpoints/         # saved model weights (gitignored; metrics logged as CSV)
   app.py               # Streamlit dashboard
   tests/               # unit tests for data shapes, model forward pass
+  extras/              # optional bonus tools, not part of the core pipeline
   PROGRESS.md
   README.md
 ```
