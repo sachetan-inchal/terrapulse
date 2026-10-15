@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+/data/
+!data/demo/
+!data/demo/**
+checkpoints/*.pt
+checkpoints/*.pth
+.DS_Store
+._*
+*.egg-info/
+.pytest_cache/

@@ -1,0 +1,17 @@
+# Extra dependencies for the optional/exploratory tools in extras/.
+# NOT required to reproduce the core Tier 0-4 pipeline (see ../requirements.txt).
+# Install with: pip install -r extras/requirements-extras.txt
+
+# cv_stitcher.py (classical CV stitching, self-contained)
+opencv-python==4.10.0.84
+
+# stac_mosaic_app.py (live Sentinel-2 streaming from Microsoft Planetary Computer)
+rasterio==1.5.1
+pystac-client==0.9.0
+planetary-computer==1.0.0
+
+# model_studio_demo.py (untrained-decoder segmentation architectures + foundation model demo)
+gradio==6.28.0
+segmentation-models-pytorch==0.5.0
+timm==1.0.30
+transformers==5.17.0

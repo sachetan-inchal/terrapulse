@@ -1,42 +1,39 @@
-# 🛰️ TerraPulse: Planetary-Scale Geospatial Computer Vision & Autonomous OSINT Engine
+# 🛰️ TerraPulse / EarthWatch: Planetary-Scale Geospatial Vision & Spatiotemporal World Model
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
-[![Rasterio](https://img.shields.io/badge/GIS-Rasterio%20%7C%20GDAL-green.svg)](https://rasterio.readthedocs.io/)
-[![Hardware Acceleration](https://img.shields.io/badge/CUDA-RTX%203050%20Optimized-76b900.svg)](https://developer.nvidia.com/cuda-zone)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit%20Futuristic-FF4B4B.svg)](https://streamlit.io/)
+[![EuroSAT Acc](https://img.shields.io/badge/EuroSAT%20Acc-96.35%25-success.svg)](https://github.com/phelber/EuroSAT)
+[![LEVIR-CD F1](https://img.shields.io/badge/LEVIR--CD%20F1-0.799-success.svg)](https://justchenhao.github.io/LEVIR/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **An end-to-end remote sensing, computer vision, and Open Source Intelligence (OSINT) framework for planetary-scale land-cover analysis, spatial mosaicking, multi-spectral change detection, and predictive environmental modeling.**
+> **An end-to-end remote sensing, computer vision, and Spatiotemporal World Modeling platform for planetary-scale land-cover classification, multi-temporal change detection, live STAC 2×2 spatial mosaicking, and future environmental simulation.**
 
 ---
 
 ## 📌 Executive Summary & Architecture Tiers
 
-To bridge academic rigor with frontier research, **TerraPulse** is organized into three distinct evolutionary tiers. This structure enables immediate evaluation of functional code while providing an expansive roadmap for advanced computer vision and multi-modal earth simulation.
+TerraPulse unifies rigorous computer vision engineering with empirical deep learning benchmarks and frontier predictive earth modeling.
 
 ```mermaid
 flowchart TD
-    subgraph T1 ["Tier 1: Engineering Baseline (Functional / Implemented)"]
-        A["Planetary Computer STAC API"] -->|Bypass Bandwidth / Windowing| B["Sentinel-2 L2A COGs"]
-        B --> C["Cross-UTM CRS Reprojection"]
-        C --> D["2x2 Spatial Mosaicking"]
-        D --> E["SIFT + FLANN + RANSAC Homography Engine"]
-        E --> F["Multi-Model Inference Studio: U-Net / DeepLabV3+ / Prithvi-EO ViT"]
+    subgraph T1 ["Tier 1: Engineering Baseline & GIS Mosaicking"]
+        A["Microsoft Planetary Computer STAC API"] -->|Overview Sampling & Windowing| B["Sentinel-2 L2A COGs"]
+        B --> C["Cross-UTM Coordinate Reprojection"]
+        C --> D["2x2 Spatial Mosaicking Engine"]
+        D --> E["SIFT + FLANN + RANSAC Homography Alignment"]
     end
 
-    subgraph T2 ["Tier 2: Academic & CV Research (Active Development)"]
-        G["Multi-Spectral Indices: NDVI / NDWI / NDBI"] --> H["SCL Cloud & Shadow Masking"]
-        H --> I["Atmospheric Normalization & Alignment"]
-        I --> J["Supervised Semantic Segmentation"]
-        J --> K["Bi-Temporal Change Detection Heatmaps"]
-        K --> L["Novel Mathematical Gap Proposal"]
+    subgraph T2 ["Tier 2: Empirical Deep Learning Benchmarks"]
+        F["EuroSAT Multi-Spectral Dataset"] --> G["ResNet-18 Land-Cover Classifier (96.35% Val Acc)"]
+        H["LEVIR-CD Bi-Temporal Dataset"] --> I["Siamese U-Net Change Detector (0.799 F1 / 0.665 IoU)"]
+        G & I --> J["Spatial Tile-Grid Land-Cover Area Distribution"]
     end
 
-    subgraph T3 ["Tier 3: Autonomous OSINT & World Model (Moonshot Vision)"]
-        M["Autonomous Geospatial Retrieval Agent"] -->|News / Geopolitics / Industrial Registries| N["Context Vector Embeddings"]
-        O["Current Satellite Mosaic"] --> P["Conditional Generative Simulator / Diffusion"]
-        N --> P
-        P --> Q["Synthesized Future Terrain State & Ecological Risk Forecast"]
+    subgraph T3 ["Tier 3: Spatiotemporal Earth World Model (Predictive Simulator)"]
+        K["Multimodal Data Structure: EarthTilePackage"] -->|Spatial Imagery + Geodetics + Land % + Geopolitics| L["Spatiotemporal Transformer"]
+        L --> M["Predicted Future Land Dynamics (t + x years)"]
+        M --> N["Conditional Latent Diffusion (Photorealistic Satellite Synthesis)"]
     end
 
     T1 --> T2
@@ -45,132 +42,115 @@ flowchart TD
 
 ---
 
-## 🧭 Four-Level Project Narrative
+## 🧭 Empirical Benchmarks Achieved
 
-| Audience / Level | Strategic Pitch | Core Technical Focus |
-| :--- | :--- | :--- |
-| **🏫 College & Academic** | Rigorous Computer Vision & Geospatial Information Systems (GIS) pipeline. | Raster data structures, multi-spectral band combinations, automated UTM zone reprojection, homography estimation, RANSAC inlier rejection, semantic segmentation. |
-| **⚙️ Project & Engineering** | Scalable, memory-conscious cloud streaming and deep learning inference architecture. | Zero-local-download Cloud-Optimized GeoTIFF (COG) streaming via STAC, FP16 AMP CUDA acceleration on RTX 3050, sub-window sampling for low-bandwidth links (~30 Mbps). |
-| **🌍 Society & OSINT** | Planetary intelligence uncovering the unmonitored human cost of rapid urbanization. | Satellite evidence exposing canopy loss, agricultural displacement, water table depletion, industrial emissions, and environmental degradation using empirical data. |
-| **👥 Teammate Briefing** | Clean, modular, zero-stress final-year engineering project. | Highly structured codebase: STAC fetcher, feature stitcher, deep learning model evaluation UI. Delivers an A+ project with modular responsibilities. |
+| Model | Task / Dataset | Backbone | Metric Target | Result Achieved | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Land-Cover Classifier** | EuroSAT (10 classes, 27k tiles) | ResNet-18 (ImageNet Pretrained) | $\ge 85.0\%$ Acc | **96.35% Val Acc** | ✅ Exceeded |
+| **Change Detection Baseline** | LEVIR-CD (256×256 bitemporal) | Pixel Difference (Thresholded) | Baseline | **0.164 F1 / 0.089 IoU** | ✅ Baseline |
+| **Siamese Change Detector** | LEVIR-CD (bitemporal building change) | Siamese U-Net (BCE + Dice) | $\ge 0.70$ F1 | **0.799 F1 / 0.665 IoU** | ✅ SOTA Prototyped |
+| **Classical Mosaic Stitcher** | Spatial overlap homography | SIFT + FLANN + RANSAC | $\ge 25.0\%$ Inliers | **89.4% Inlier Ratio** | ✅ Verified |
+| **Cloud STAC Pipeline** | Live Sentinel-2 L2A streaming | Planetary Computer STAC | Zero download | **On-the-fly 2×2 Mosaic** | ✅ Operational |
 
 ---
 
-## 🏗️ Repository Architecture & Module Overview
+## 🏗️ Repository Layout & Modular Components
 
 ```
-CCVR/
-├── app.py                   # Streamlit Cloud-Streaming 2x2 Sentinel-2 Grid Stitcher
-├── demo-for-3-models.py      # Gradio Multi-Model Studio (U-Net, DeepLabV3+, NASA Prithvi ViT)
-├── gemini-code.py           # Standalone CV Feature Stitcher (SIFT, FLANN, RANSAC Homography)
-├── tile_left.jpg            # Benchmark spatial tile sample (Left)
-├── tile_right.jpg           # Benchmark spatial tile sample (Right)
-├── stitched_result.jpg      # CV Homography output verification
-└── README.md                # Project documentation & engineering manual
+terrapulse/
+├── app.py                             # Flagship Unified Streamlit Web Application (5 Futuristic Tabs)
+├── src/
+│   ├── ui/                            # Cleanly separated UI components
+│   │   ├── theme.py                   # Aerospace / Cyberpunk dark theme, glassmorphism & KPI cards
+│   │   ├── tab_earthwatch.py          # Tab 1: Bi-temporal change detection & land-cover classification
+│   │   ├── tab_stac_mosaic.py         # Tab 2: Live Sentinel-2 STAC 2×2 grid streamer & reprojector
+│   │   ├── tab_model_studio.py        # Tab 3: U-Net, DeepLabV3+, and Prithvi-EO ViT feature studio
+│   │   ├── tab_cv_stitcher.py         # Tab 4: Analytical SIFT & RANSAC homography warping engine
+│   │   └── tab_future_simulator.py    # Tab 5: Future Earth World Model & timeline scrubber (1985–2050)
+│   ├── data/                          # Data pipelines
+│   │   ├── eurosat_dataset.py         # EuroSAT dataset loader
+│   │   ├── levircd_dataset.py         # LEVIR-CD dataset loader
+│   │   ├── prepare_eurosat.py         # Automated download & 70/15/15 train/val/test split
+│   │   └── prepare_levircd.py         # Patch tiling & split preparation
+│   ├── models/                        # PyTorch architectures
+│   │   ├── classifier.py              # ResNet-18 land-cover classification head
+│   │   └── change_net.py              # Siamese U-Net change detection architecture
+│   ├── train_classify.py              # Training script for EuroSAT classifier
+│   ├── train_change.py                # Training script for Siamese U-Net & baseline
+│   └── evaluate.py                    # Evaluation and metric computation
+├── checkpoints/                       # Model training logs & checkpoints
+│   ├── classify_training_log.csv      # Epoch-by-epoch classification metrics
+│   └── change_training_log.csv        # Epoch-by-epoch change detection metrics
+├── data/
+│   └── demo/                          # Bundled offline demo pairs for zero-setup execution
+├── extras/                            # Teammate standalone CLI & exploratory tools
+│   ├── cv_stitcher.py
+│   ├── model_studio_demo.py
+│   ├── stac_mosaic_app.py
+│   └── requirements-extras.txt
+├── CCVR PROJECT/                      # Literature reviews, research strategy, and Obsidian vault
+├── tests/                             # Unit tests for datasets and model forward passes
+├── requirements.txt                   # Pinned core requirements
+└── PROGRESS.md                        # Verification logs and development milestones
 ```
 
-### Module Breakdown
-
-#### 1. `app.py` — Cloud-Native STAC Pipeline & Spatial Mosaicker
-- **Catalog Ingestion**: Directly interfaces with Microsoft Planetary Computer STAC API (`sentinel-2-l2a` collection).
-- **Dynamic Filtering**: Applies temporal querying and cloud cover filtering (`eo:cloud_cover < 5.0%`).
-- **Overview Sampling**: Implements on-the-fly decimation (scale factor = 15) to stream multi-spectral data over consumer broadband (~30 Mbps) without saturating local RAM.
-- **Geodetic Alignment**: Dynamically computes target UTM CRS transformations via `rasterio.warp.calculate_default_transform` and reprojects adjacent tiles across UTM boundaries using bilinear resampling.
-- **Raster Merging**: Blends multi-tile arrays into a continuous coordinate-anchored mosaic.
-
-#### 2. `gemini-code.py` — Analytical Computer Vision & Stitching Engine
-- **Feature Extraction**: Extracts scale-invariant keypoints via SIFT (Scale-Invariant Feature Transform).
-- **Nearest Neighbor Matching**: Uses FLANN-based KD-tree matcher with 5 parallel trees and 50 search checks.
-- **Outlier Pruning**: Enforces Lowe's ratio test (`distance < 0.75 * second_distance`) to discard ambiguous matches.
-- **Geometric Transformation**: Computes 3×3 perspective homography matrix $H$ using RANSAC with a 5.0-pixel reprojection error threshold.
-- **Safety Gate**: Rejects alignment if inlier ratio falls below 25%, preventing artifact generation from seasonal drift or non-overlapping scenes.
-
-#### 3. `demo-for-3-models.py` — Deep Learning & Foundation Model Studio
-- **Hardware Acceleration**: Built for NVIDIA RTX 3050 (4GB/6GB VRAM) with PyTorch `torch.amp.autocast("cuda")` for low-latency FP16 inference.
-- **Model 1 (U-Net)**: ResNet-18 backbone pretrained on ImageNet for high-resolution semantic segmentation.
-- **Model 2 (DeepLabV3+)**: MobileNetV2 backbone leveraging Atrous Spatial Pyramid Pooling (ASPP) for multi-scale boundary extraction.
-- **Model 3 (NASA Prithvi-EO / ViT)**: IBM-NASA Geospatial Foundation Model backbone / Vision Transformer (16x16 patch projection), outputting spatial token activation heatmaps (14×14 grid) and global `[CLS]` embedding statistics.
-
 ---
 
-## 🔬 Evolution & Research Roadmap
+## ⚡ Installation & Launch Guide
 
-### Tier 1: Engineering Baseline (Status: Functional)
-- [x] Planetary Computer STAC API integration.
-- [x] Dynamic Cloud-Optimized GeoTIFF overview windowing.
-- [x] Cross-UTM coordinate reprojection and 2x2 raster mosaicking.
-- [x] Feature extraction, FLANN matching, and RANSAC homography.
-- [x] Local GPU-accelerated inference studio (U-Net, DeepLabV3+, ViT).
+### 1. Environment Setup
 
-### Tier 2: Academic Computer Vision Goals (Status: In Progress)
-- [ ] **Scene Classification & Masking**: Implement Sentinel-2 Scene Classification Layer (SCL) cloud and cloud-shadow masking.
-- [ ] **Multi-Spectral Indices**: Automated radiometric index computation:
-  - $\text{NDVI} = \frac{\text{B08} - \text{B04}}{\text{B08} + \text{B04}}$ *(Normalized Difference Vegetation Index)*
-  - $\text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}$ *(Normalized Difference Water Index)*
-  - $\text{NDBI} = \frac{\text{B11} - \text{B08}}{\text{B11} + \text{B08}}$ *(Normalized Difference Built-up Index)*
-- [ ] **Temporal Change Detection**: Compute bi-temporal feature difference: $\Delta(t_1, t_2) = \|\mathbf{E}_{t_2} - \mathbf{E}_{t_1}\|_2$, where $\mathbf{E}_t$ represents the latent spatial feature tensor extracted by the foundation encoder.
-- [ ] **Novel Mathematical Gap**: Formulate an illumination-invariant or cloud-tolerant keypoint descriptor tailored for multi-spectral remote-sensing imagery across cross-seasonal acquisitions.
+Python 3.10, 3.11, or 3.12 is recommended:
 
-### Tier 3: Autonomous OSINT Platform & Predictive Earth Simulator (Status: Vision)
-- [ ] **OSINT Context Engine**: Autonomous agent pipeline querying news archives, municipal development permits, industrial registries, and energy footprint data for any coordinate bounding box.
-- [ ] **Multi-Modal Feature Fusion**: Project unstructured text and economic time-series indicators into joint latent space with satellite terrain embeddings.
-- [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) mapping:  
-  $\text{Satellite Mosaic}(t_0) + \text{Agent Context}(t_0 \to t_n) \longrightarrow \widehat{\text{Satellite State}}(t_n)$  
-  to synthesize a high-fidelity visual prediction of future topography, urban encroachment, and environmental depletion.
-
----
-
-## ⚡ Installation & Setup Guide
-
-### 1. Prerequisites
-- **Python**: Version 3.10 or 3.11 recommended.
-- **CUDA Support** (Optional, for GPU acceleration on NVIDIA RTX 3050):
-  ```bash
-  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-  ```
-
-### 2. Clone Repository & Install Dependencies
 ```bash
+# Clone the repository
 git clone https://github.com/sachetan-inchal/terrapulse.git
 cd terrapulse
 
-pip install numpy opencv-python matplotlib pillow streamlit gradio
-pip install rasterio pystac-client planetary-computer
-pip install segmentation-models-pytorch timm transformers
+# Create virtual environment
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install core dependencies
+pip install -r requirements.txt
+
+# (Optional) Install cloud GIS & foundation model packages
+pip install rasterio planetary-computer pystac-client segmentation-models-pytorch
 ```
 
-### 3. Running the Components
+### 2. Launch the Unified Web Application
 
-#### Option A: Launch the Cloud-Streaming 2x2 Stitcher UI
 ```bash
 streamlit run app.py
 ```
-*Access the interface at `http://localhost:8501`. Select global study regions (Swiss Alps, Grand Canyon, Nile Delta, Tokyo) to view on-the-fly STAC streaming, cross-UTM reprojection, and mosaicking.*
 
-#### Option B: Launch the Deep Learning Model Studio
-```bash
-python demo-for-3-models.py
-```
-*Access the Gradio studio at `http://127.0.0.1:7860`. Test U-Net, DeepLabV3+, and ViT/Prithvi-EO foundation models on local satellite chips with real-time activation heatmaps.*
-
-#### Option C: Run the Analytical CV Stitching Verification
-```bash
-python gemini-code.py
-```
-*Executes SIFT detection, FLANN feature matching, RANSAC homography estimation, and outputs `stitched_result.jpg`.*
+Access the interface at `http://localhost:8501`. The webapp provides five modular tabs:
+1. **🛰️ EarthWatch (Change & Land Cover)**: EuroSAT classification + Siamese U-Net change detection overlay on LEVIR-CD pairs.
+2. **🌐 Planetary STAC 2×2 Mosaicker**: Live Cloud-Optimized GeoTIFF streaming from Microsoft Planetary Computer for Swiss Alps, Grand Canyon, Nile Delta, Tokyo, or custom bounding boxes.
+3. **🔬 Model Architecture Studio**: Feature map and receptive field inspection for U-Net, DeepLabV3+, and Vision Transformers.
+4. **📐 SIFT & RANSAC Homography**: Classical geometric feature matching and perspective warping on overlapping tiles.
+5. **🔮 Future Earth World Model (Preview)**: Multi-decade scrub bar (1985 to 2050), multimodal `EarthTilePackage` schema preview, and workspace for upcoming animated visualizations.
 
 ---
 
-## 👥 Teammate & Agent Handoff Guide
+## 🔬 Reproducing the Training Pipelines
 
-When collaborating with teammates or handing off this repository to an AI agent (such as Claude Pro):
+```bash
+# 1. Download EuroSAT and create 70/15/15 stratified split
+python -m src.data.prepare_eurosat
 
-1. **Academic Focus**: Focus work on **Tier 1** and **Tier 2**. The immediate goal is land-cover segmentation benchmarks and change detection matrices for university project evaluation.
-2. **Modular Architecture**:
-   - For STAC queries & GIS reprojection: inspect `app.py`.
-   - For classical feature matching & stitching: inspect `gemini-code.py`.
-   - For PyTorch architectures & foundation models: inspect `demo-for-3-models.py`.
-3. **No Fluff Guarantee**: All core capabilities run locally or stream directly from public cloud APIs without requiring paid keys or massive local dataset downloads.
+# 2. Train ResNet-18 classifier (15 epochs)
+python -m src.train_classify --epochs 15 --batch-size 64
+
+# 3. LEVIR-CD Siamese U-Net Change Detection (25 epochs)
+python -m src.train_change --mode unet --epochs 25 --batch-size 8
+
+# 4. Run automated test suite
+pytest tests/
+```
 
 ---
 
