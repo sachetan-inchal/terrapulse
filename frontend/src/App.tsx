@@ -19,7 +19,7 @@ import {
 } from './types';
 import { 
   fetchLocations, fetchScenes, fetchAnalysis, 
-  fetchChangeDetection, fetchInvestigation 
+  fetchChangeDetection, fetchInvestigation, geocodeLocation 
 } from './services/api';
 
 export const App: React.FC = () => {
@@ -43,6 +43,7 @@ export const App: React.FC = () => {
   const [changeData, setChangeData] = useState<ChangeDetectionResult | null>(null);
   const [investigation, setInvestigation] = useState<InvestigationResponse | null>(null);
   const [investigating, setInvestigating] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [activeTimelineView, setActiveTimelineView] = useState<'historical' | 'current' | 'future'>('current');
   const [is3DMode, setIs3DMode] = useState(true);
 
@@ -78,6 +79,27 @@ export const App: React.FC = () => {
     fetchChangeDetection(currentLocation.id, 1985, selectedYear).then(setChangeData).catch(console.error);
     fetchInvestigation("Why did this region change?", currentLocation.id).then(setInvestigation).catch(console.error);
   }, [currentLocation, selectedYear]);
+
+  const handleSearchLocation = async (query: string) => {
+    setIsSearching(true);
+    try {
+      const geocoded = await geocodeLocation(query);
+      if (geocoded) {
+        setCurrentLocation(geocoded);
+        // Include new queried location in available list if not present
+        setLocations(prev => {
+          if (!prev.find(l => l.id === geocoded.id)) {
+            return [geocoded, ...prev];
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to geocode location:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleRunInvestigation = async (query: string) => {
     setInvestigating(true);
@@ -118,7 +140,9 @@ export const App: React.FC = () => {
           currentLocation={currentLocation}
           availableLocations={locations}
           onSelectLocation={setCurrentLocation}
+          onSearchLocation={handleSearchLocation}
           onZoomToRegion={() => setSelectedYear(2024)}
+          isSearching={isSearching}
         />
 
         {/* Dynamic Center Stage Content */}
@@ -138,7 +162,7 @@ export const App: React.FC = () => {
               {/* Processing Pipeline & Visual Multi-spectral Layers */}
               <div className="grid grid-cols-2 gap-3.5">
                 <PipelineVisualizer />
-                <VisualLayersBar />
+                <VisualLayersBar previewUrl={scenes[0]?.thumbnail_url} />
               </div>
 
               {/* Bottom Multi-Decade Timeline Scrubber */}
@@ -157,7 +181,7 @@ export const App: React.FC = () => {
           )}
 
           {activeTab === 'computervision' && (
-            <CVTechnicalWorkspace changeData={changeData} />
+            <CVTechnicalWorkspace changeData={changeData} scenes={scenes} />
           )}
 
           {(activeTab === 'landcover' || activeTab === 'environmental') && (

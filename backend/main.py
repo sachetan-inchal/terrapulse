@@ -53,13 +53,21 @@ def get_locations():
 
 @app.get("/api/locations/search", response_model=List[LocationInfo])
 def search_location_endpoint(q: str = Query(..., min_length=1)):
-    return search_locations(q)
+    from backend.services.geocoding import geocode_location
+    resolved = geocode_location(q)
+    return [resolved]
+
+@app.get("/api/locations/geocode", response_model=LocationInfo)
+def geocode_endpoint(q: str = Query(..., min_length=1)):
+    from backend.services.geocoding import geocode_location
+    return geocode_location(q)
 
 @app.get("/api/scenes", response_model=List[SatelliteScene])
 def get_scenes(
     location_id: str = Query("bengaluru"),
     max_cloud: float = Query(20.0)
 ):
+    from backend.services.satellite import get_scenes_for_location
     return get_scenes_for_location(location_id, max_cloud=max_cloud)
 
 @app.get("/api/stac/live")

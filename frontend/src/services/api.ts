@@ -16,11 +16,11 @@ export async function fetchLocations(): Promise<LocationInfo[]> {
     return [
       {
         id: "bengaluru",
-        name: "Bengaluru, Karnataka",
+        name: "Bengaluru, Karnataka, India",
         country: "India",
         latitude: 12.9716,
         longitude: 77.5946,
-        bbox: [77.45, 12.85, 77.75, 13.10],
+        bbox: [77.4598, 12.8334, 77.7840, 13.1426],
         default_crs: "EPSG:4326",
         target_utm: "EPSG:32643",
         description: "High-growth global IT hub undergoing intensive multi-decade urban expansion and green canopy reduction."
@@ -29,60 +29,33 @@ export async function fetchLocations(): Promise<LocationInfo[]> {
   }
 }
 
+export async function geocodeLocation(query: string): Promise<LocationInfo> {
+  const res = await fetch(`${API_BASE}/locations/geocode?q=${encodeURIComponent(query)}`);
+  if (!res.ok) throw new Error(`Geocoding failed for: ${query}`);
+  return await res.json();
+}
+
 export async function fetchScenes(locationId: string = 'bengaluru', maxCloud: number = 20.0): Promise<SatelliteScene[]> {
   try {
     const res = await fetch(`${API_BASE}/scenes?location_id=${locationId}&max_cloud=${maxCloud}`);
     if (!res.ok) throw new Error('Failed to fetch scenes');
-    return await res.json();
+    const data = await res.json();
+    return data;
   } catch (err) {
+    console.warn('Failed to fetch live STAC scenes, falling back to local benchmark:', err);
     return [
       {
-        id: "LS05_1985_BEN",
-        mission: "Landsat 5",
-        sensor: "Thematic Mapper (TM)",
-        acquisition_date: "1985-03-22",
-        year: 1985,
-        cloud_cover: 1.2,
-        spatial_resolution_m: 30.0,
-        thumbnail_url: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&q=80",
-        crs: "EPSG:32643",
-        bbox: [77.45, 12.85, 77.75, 13.10]
-      },
-      {
-        id: "LS08_2015_BEN",
-        mission: "Landsat 8",
-        sensor: "Operational Land Imager (OLI)",
-        acquisition_date: "2015-02-28",
-        year: 2015,
-        cloud_cover: 0.8,
-        spatial_resolution_m: 30.0,
-        thumbnail_url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80",
-        crs: "EPSG:32643",
-        bbox: [77.45, 12.85, 77.75, 13.10]
-      },
-      {
-        id: "S2A_2020_BEN",
+        id: "S2_2024_BEN",
         mission: "Sentinel-2",
-        sensor: "MultiSpectral Instrument (MSI)",
-        acquisition_date: "2020-01-18",
-        year: 2020,
-        cloud_cover: 0.4,
-        spatial_resolution_m: 10.0,
-        thumbnail_url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80",
-        crs: "EPSG:32643",
-        bbox: [77.45, 12.85, 77.75, 13.10]
-      },
-      {
-        id: "PS_2024_BEN",
-        mission: "PlanetScope",
-        sensor: "SuperDove (PSB.SD)",
-        acquisition_date: "2024-03-05",
+        sensor: "MSI 10m",
+        acquisition_date: "2024-03-28",
         year: 2024,
-        cloud_cover: 0.1,
-        spatial_resolution_m: 3.0,
-        thumbnail_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&q=80",
+        cloud_cover: 0.12,
+        spatial_resolution_m: 10.0,
+        thumbnail_url: "/api/imagery/tile?mission=Sentinel-2&year=2024",
+        preview_url: "/api/imagery/tile?mission=Sentinel-2&year=2024",
         crs: "EPSG:32643",
-        bbox: [77.45, 12.85, 77.75, 13.10]
+        bbox: [77.4598, 12.8334, 77.7840, 13.1426]
       }
     ];
   }

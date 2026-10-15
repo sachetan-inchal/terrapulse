@@ -1,6 +1,12 @@
 import React from 'react';
 
-export const VisualLayersBar: React.FC = () => {
+interface VisualLayersBarProps {
+  previewUrl?: string;
+}
+
+export const VisualLayersBar: React.FC<VisualLayersBarProps> = ({ previewUrl }) => {
+  const satelliteImg = previewUrl || '/api/imagery/tile?mission=Sentinel-2&year=2024';
+
   return (
     <div className="glass-panel p-3.5 rounded-xl border border-cyan-500/20">
       <div className="text-[11px] font-semibold text-slate-300 font-mono uppercase tracking-wider mb-2.5">
@@ -11,9 +17,11 @@ export const VisualLayersBar: React.FC = () => {
         {/* Layer 1: Land Cover */}
         <div className="bg-space-950/70 border border-slate-800 rounded-lg p-2 flex flex-col justify-between">
           <div className="h-16 rounded overflow-hidden mb-1.5 relative bg-gradient-to-tr from-emerald-900/60 via-amber-900/40 to-rose-900/60 border border-slate-800">
-            <div className="absolute inset-0 bg-cover bg-center opacity-80" 
-                 style={{ backgroundImage: `url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=200&q=70')` }} />
-            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-white">
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-85" 
+              style={{ backgroundImage: `url('${satelliteImg}')` }} 
+            />
+            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-cyan-accent border border-cyan-500/30">
               AI Seg Net
             </span>
           </div>
@@ -29,9 +37,11 @@ export const VisualLayersBar: React.FC = () => {
         {/* Layer 2: NDVI */}
         <div className="bg-space-950/70 border border-slate-800 rounded-lg p-2 flex flex-col justify-between">
           <div className="h-16 rounded overflow-hidden mb-1.5 relative border border-slate-800 bg-gradient-to-r from-red-600 via-yellow-500 to-green-500">
-            <div className="absolute inset-0 bg-cover bg-center opacity-70 mix-blend-overlay" 
-                 style={{ backgroundImage: `url('https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=200&q=70')` }} />
-            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-white">
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-75 mix-blend-overlay" 
+              style={{ backgroundImage: `url('${satelliteImg}')` }} 
+            />
+            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-emerald-300 border border-emerald-500/30">
               NIR/Red Ratio
             </span>
           </div>
@@ -46,10 +56,11 @@ export const VisualLayersBar: React.FC = () => {
         {/* Layer 3: Change Detection */}
         <div className="bg-space-950/70 border border-slate-800 rounded-lg p-2 flex flex-col justify-between">
           <div className="h-16 rounded overflow-hidden mb-1.5 relative border border-slate-800 bg-gradient-to-br from-blue-950 via-slate-900 to-rose-950">
-            <div className="absolute inset-0 bg-cover bg-center opacity-70" 
-                 style={{ backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=200&q=70')` }} />
-            <div className="absolute inset-0 bg-rose-500/30 mix-blend-color-dodge" />
-            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-cyan-300">
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-85" 
+              style={{ backgroundImage: `url('/api/imagery/change_mask')` }} 
+            />
+            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-space-950/80 text-[8px] font-mono text-rose-300 border border-rose-500/30">
               Siamese U-Net
             </span>
           </div>
@@ -63,3 +74,4 @@ export const VisualLayersBar: React.FC = () => {
     </div>
   );
 };
+

@@ -3,17 +3,20 @@ import {
   GitCompare, ShieldCheck, AlertTriangle, Layers, 
   Cpu, Sliders, CheckCircle2, RefreshCw 
 } from 'lucide-react';
-import { RegistrationResult, ChangeDetectionResult } from '../types';
+import { RegistrationResult, ChangeDetectionResult, SatelliteScene } from '../types';
 import { runRegistration } from '../services/api';
 
 interface CVTechnicalWorkspaceProps {
   changeData: ChangeDetectionResult | null;
+  scenes?: SatelliteScene[];
 }
 
-export const CVTechnicalWorkspace: React.FC<CVTechnicalWorkspaceProps> = ({ changeData }) => {
+export const CVTechnicalWorkspace: React.FC<CVTechnicalWorkspaceProps> = ({ changeData, scenes }) => {
   const [loweRatio, setLoweRatio] = useState(0.75);
   const [ransacThresh, setRansacThresh] = useState(5.0);
   const [loading, setLoading] = useState(false);
+  const tile1 = scenes && scenes.length > 1 ? scenes[1].thumbnail_url : '/api/imagery/tile?mission=Landsat&year=2015';
+  const tile2 = scenes && scenes.length > 0 ? scenes[0].thumbnail_url : '/api/imagery/tile?mission=Sentinel-2&year=2024';
   const [regResult, setRegResult] = useState<RegistrationResult | null>({
     status: "SUCCESS",
     method: "SIFT + RANSAC Homography",
@@ -168,7 +171,7 @@ export const CVTechnicalWorkspace: React.FC<CVTechnicalWorkspaceProps> = ({ chan
           </div>
           <div className="h-64 rounded-lg bg-space-950 border border-slate-800 overflow-hidden relative">
             <img 
-              src="https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=600&q=80" 
+              src={tile1} 
               alt="Feature Matches" 
               className="w-full h-full object-cover"
             />
@@ -193,7 +196,7 @@ export const CVTechnicalWorkspace: React.FC<CVTechnicalWorkspaceProps> = ({ chan
           </div>
           <div className="h-64 rounded-lg bg-space-950 border border-slate-800 overflow-hidden relative">
             <img 
-              src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&q=80" 
+              src={tile2} 
               alt="Stitched Canvas" 
               className="w-full h-full object-cover"
             />

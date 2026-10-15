@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Compass, Plus, Minus, Eye, Layers, Maximize2 } from 'lucide-react';
+import { Compass, Plus, Minus, Layers, AlertCircle, ExternalLink } from 'lucide-react';
 import { LocationInfo, SatelliteScene } from '../types';
 
 interface GlobeMapStageProps {
@@ -21,41 +21,15 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Callouts array matching reference screenshot: Landsat 5 (1985), Landsat 8 (2015), Sentinel-2 (2020), PlanetScope (2024)
-  const calloutScenes = [
-    {
-      mission: 'Landsat 5',
-      year: 1985,
-      res: '30m',
-      pos: 'top-10 left-12',
-      arrow: 'after:right-[-20px] after:top-[40%]',
-      img: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=300&q=75'
-    },
-    {
-      mission: 'Landsat 8',
-      year: 2015,
-      res: '30m',
-      pos: 'bottom-20 left-16',
-      arrow: 'after:right-[-20px] after:top-[30%]',
-      img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&q=75'
-    },
-    {
-      mission: 'Sentinel-2',
-      year: 2020,
-      res: '10m',
-      pos: 'top-12 right-16',
-      arrow: 'after:left-[-20px] after:top-[40%]',
-      img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&q=75'
-    },
-    {
-      mission: 'PlanetScope',
-      year: 2024,
-      res: '3.0m',
-      pos: 'bottom-24 right-12',
-      arrow: 'after:left-[-20px] after:top-[30%]',
-      img: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=75'
-    }
+  // Position slots around the orbital globe for the callout cards
+  const positions = [
+    'top-6 left-8',
+    'bottom-16 left-10',
+    'top-8 right-10',
+    'bottom-20 right-8'
   ];
+
+  const displayedScenes = scenes.slice(0, 4);
 
   return (
     <div className="relative w-full h-[460px] bg-space-950 overflow-hidden rounded-xl border border-cyan-500/20 shadow-2xl flex items-center justify-center">
@@ -74,8 +48,8 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
           <div 
             className="w-full h-full bg-cover bg-center transition-all duration-1000 transform group-hover:scale-105"
             style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=800&q=80')`,
-              filter: 'contrast(1.15) brightness(0.95)'
+              backgroundImage: `url('https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=S2A_MSIL2A_20240328T050651_R019_T43PHQ_20240330T035744&assets=visual&asset_bidx=visual%7C1,2,3&nodata=0&format=png')`,
+              backgroundColor: '#0a1026'
             }}
           />
 
@@ -89,8 +63,8 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
               <div className="w-4 h-4 rounded-full bg-cyan-accent animate-ping absolute inset-0 opacity-75" />
               <div className="w-4 h-4 rounded-full bg-cyan-accent border-2 border-white shadow-glow-cyan relative z-10" />
             </div>
-            <div className="mt-1 px-2.5 py-0.5 rounded bg-space-950/90 border border-cyan-400/60 backdrop-blur-md shadow-lg text-center">
-              <div className="text-[11px] font-bold text-white tracking-wide">{location.name.split(',')[0]}</div>
+            <div className="mt-1 px-2.5 py-0.5 rounded bg-space-950/90 border border-cyan-400/60 backdrop-blur-md shadow-lg text-center max-w-[180px]">
+              <div className="text-[11px] font-bold text-white tracking-wide truncate">{location.name.split(',')[0]}</div>
               <div className="text-[9px] text-cyan-400 font-mono">
                 {location.latitude.toFixed(2)}°N, {location.longitude.toFixed(2)}°E
               </div>
@@ -98,27 +72,42 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
           </div>
         </div>
 
-        {/* Floating Satellite Observation Callout Cards */}
-        {calloutScenes.map((c) => {
-          const isCurrent = selectedYear === c.year;
+        {/* Floating REAL Satellite Observation Callout Cards */}
+        {displayedScenes.map((scene, idx) => {
+          const isCurrent = selectedYear === scene.year;
+          const posClass = positions[idx % positions.length];
           return (
             <div
-              key={c.year}
-              onClick={() => onSelectYear(c.year)}
-              className={`absolute ${c.pos} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+              key={scene.id || idx}
+              onClick={() => onSelectYear(scene.year)}
+              className={`absolute ${posClass} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
                 isCurrent ? 'ring-2 ring-cyan-accent shadow-glow-cyan' : 'opacity-85 hover:opacity-100'
               }`}
             >
-              <div className="w-32 bg-space-900/90 border border-cyan-500/40 rounded-lg overflow-hidden backdrop-blur-md p-1.5 shadow-xl">
-                <div className="h-16 w-full rounded overflow-hidden bg-space-950 mb-1 relative">
-                  <img src={c.img} alt={c.mission} className="w-full h-full object-cover" />
-                  <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-space-950/80 text-[8px] text-cyan-300 font-mono">
-                    {c.res}
+              <div className="w-36 bg-space-900/95 border border-cyan-500/40 rounded-lg overflow-hidden backdrop-blur-md p-1.5 shadow-xl">
+                <div className="h-20 w-full rounded overflow-hidden bg-space-950 mb-1 relative border border-slate-800">
+                  <img 
+                    src={scene.thumbnail_url} 
+                    alt={scene.mission} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to local benchmark tile if remote tile server has temporary delay
+                      (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
+                    }}
+                  />
+                  <span className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-space-950/90 text-[8px] text-cyan-300 font-mono border border-slate-800">
+                    {scene.spatial_resolution_m}m
+                  </span>
+                  <span className="absolute top-1 left-1 px-1 py-0.2 rounded bg-space-950/90 text-[7px] text-emerald-400 font-mono">
+                    Cloud: {scene.cloud_cover}%
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="font-semibold text-white">{c.mission}</span>
-                  <span className="text-cyan-400 font-mono font-bold">({c.year})</span>
+                  <span className="font-semibold text-white truncate max-w-[70px]">{scene.mission}</span>
+                  <span className="text-cyan-400 font-mono font-bold">({scene.year})</span>
+                </div>
+                <div className="text-[8px] text-slate-400 font-mono truncate mt-0.5">
+                  Acquired: {scene.acquisition_date}
                 </div>
               </div>
             </div>
@@ -156,9 +145,9 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
       </div>
 
       {/* Bottom Floating Legend / Coordinates Tag */}
-      <div className="absolute bottom-3 left-4 flex items-center space-x-2 text-[10px] font-mono text-slate-400 bg-space-950/70 border border-slate-800 px-3 py-1 rounded-full backdrop-blur-md">
+      <div className="absolute bottom-3 left-4 flex items-center space-x-2 text-[10px] font-mono text-slate-400 bg-space-950/80 border border-cyan-500/30 px-3 py-1 rounded-full backdrop-blur-md">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>PROJECTION: ORBITAL WGS-84 / UTM ZONE {location.target_utm.split(':')[1]}</span>
+        <span>AUTHENTIC SENTINEL-2 / STAC | UTM: {location.target_utm}</span>
       </div>
     </div>
   );
