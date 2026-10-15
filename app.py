@@ -38,6 +38,7 @@ st.set_page_config(
 # Import modular UI components
 from src.ui.theme import apply_futuristic_theme, render_hero_banner, render_telemetry_sidebar
 from src.ui.tab_earthwatch import render_tab_earthwatch, get_torch_device
+from src.ui.tab_earth_explorer import render_tab_earth_explorer
 from src.ui.tab_split_slider import render_tab_split_slider
 from src.ui.tab_stac_mosaic import render_tab_stac_mosaic
 from src.ui.tab_ai_investigator import render_tab_ai_investigator
@@ -71,6 +72,7 @@ def main():
 
     # 4. Single Unified Multi-Tab Navigation
     tabs = st.tabs([
+        "🌍 Earth Explorer (Satellite Intelligence)",
         "🛰️ EarthWatch (Change & Land Cover)",
         "↔️ Bi-Temporal Split Slider",
         "🌐 Planetary STAC 2×2 Mosaicker",
@@ -81,24 +83,27 @@ def main():
     ])
 
     with tabs[0]:
-        render_tab_earthwatch()
+        render_tab_earth_explorer()
 
     with tabs[1]:
-        render_tab_split_slider()
+        render_tab_earthwatch()
 
     with tabs[2]:
-        render_tab_stac_mosaic()
+        render_tab_split_slider()
 
     with tabs[3]:
-        render_tab_ai_investigator()
+        render_tab_stac_mosaic()
 
     with tabs[4]:
-        render_tab_model_studio()
+        render_tab_ai_investigator()
 
     with tabs[5]:
-        render_tab_cv_stitcher()
+        render_tab_model_studio()
 
     with tabs[6]:
+        render_tab_cv_stitcher()
+
+    with tabs[7]:
         render_tab_future_simulator()
 
 if __name__ == "__main__":
