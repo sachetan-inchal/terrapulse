@@ -97,3 +97,29 @@ def test_environmental_cv_statistics_calibration():
     assert stats["forest_coverage_pct"] > 90.0
     assert stats["forest_area_km2"] > 0.0
     assert "total_area_km2" in stats
+
+
+def test_auto_detect_2x2_tiles_and_multi_seam_canvas():
+    """Verify auto-detection of 4 quadrant tiles and 2x2 multi-seam reference lines canvas."""
+    from src.data.sentinel_explorer import (
+        SentinelSceneMetadata,
+        auto_detect_2x2_tiles,
+        create_2x2_multi_seam_landmark_canvas
+    )
+
+    scenes = [
+        SentinelSceneMetadata("S2A_T43PHQ_2024", None, "2024-03-28", 2024, 0.1, "Sentinel-2A", "EPSG:32643", [77.6, 12.9, 78.6, 13.9], {}, "planetary_computer"),
+        SentinelSceneMetadata("S2A_T43PHP_2024", None, "2024-03-28", 2024, 1.2, "Sentinel-2A", "EPSG:32643", [77.6, 11.9, 78.6, 12.9], {}, "planetary_computer"),
+        SentinelSceneMetadata("S2A_T43PGQ_2024", None, "2024-03-28", 2024, 0.3, "Sentinel-2A", "EPSG:32643", [76.6, 12.9, 77.6, 13.9], {}, "planetary_computer"),
+        SentinelSceneMetadata("S2A_T43PGP_2024", None, "2024-03-28", 2024, 2.1, "Sentinel-2A", "EPSG:32643", [76.6, 11.9, 77.6, 12.9], {}, "planetary_computer"),
+    ]
+
+    detected = auto_detect_2x2_tiles(scenes, target_lat=12.97, target_lon=77.59)
+    assert len(detected) == 4
+
+    tiles_img = [np.full((120, 120, 3), 50 + i * 20, dtype=np.uint8) for i in range(4)]
+    canvas = create_2x2_multi_seam_landmark_canvas(tiles_img)
+    assert canvas is not None
+    assert canvas.shape[0] > 240
+    assert canvas.shape[1] > 240
+

@@ -1,9 +1,9 @@
 """Earth Explorer | Satellite Intelligence UI Component.
 
-A streamlined, single-observation-first geospatial intelligence studio:
-Stage 1: Search Location & Interactive 3D Globe / Chronological Satellite Observations Timeline
+A streamlined, automated geospatial intelligence studio:
+Stage 1: Search Location & Interactive 3D Globe with Auto-Synchronized 4-Tile Square Sticker & Timeline
 Stage 2: Live STAC Discovery (Planetary Computer & Copernicus Data Space)
-Stage 3: Cloud-Optimized Reprojection & Dedicated Stitching Laboratory (SIFT, RANSAC, Overlap, Seamlines)
+Stage 3: Automated 2x2 Quadrant Detection & Intermediate Landmark Reference Lines Stitching Visualization
 Stage 4: Environmental Computer Vision Workspace (NDVI, CIR, NDWI, NDBI, Land Cover, Population Overlay with Opacity Slider)
 Stage 5: Conditional Bi-Temporal Grid Alignment & Change Detection
 Stage 6: Evidence-Based AI Environmental Investigator
@@ -26,6 +26,7 @@ from src.data.sentinel_explorer import (
     retrieve_sentinel2_data,
     build_real_sentinel2_mosaic,
     build_georeferenced_mosaic,
+    auto_detect_2x2_tiles,
     calculate_environmental_layers,
     align_bitemporal_observations,
     SentinelSceneMetadata,
@@ -62,9 +63,9 @@ def render_tab_earth_explorer():
         <div class="section-header">
             <div class="section-title">🛰️ Earth Explorer | Satellite Intelligence</div>
             <div>
-                <span class="tech-badge badge-cyan">Sentinel-2 MSI 10m</span>
-                <span class="tech-badge badge-emerald">Real STAC COGs</span>
-                <span class="tech-badge badge-purple">Stitching Laboratory</span>
+                <span class="tech-badge badge-cyan">Automated 2×2 Quadrant Stitcher</span>
+                <span class="tech-badge badge-emerald">Landmark Reference Lines</span>
+                <span class="tech-badge badge-purple">Real STAC COGs</span>
                 <span class="tech-badge badge-amber">Environmental CV</span>
             </div>
         </div>
@@ -74,9 +75,9 @@ def render_tab_earth_explorer():
 
     st.markdown(
         """
-        Explore real, multi-spectral satellite observations worldwide. Search any location, query the live Sentinel-2 
-        catalogue across multi-decadal epochs, inspect source tiles in the **Stitching Laboratory** with SIFT & RANSAC 
-        inlier verification, fuse georeferenced mosaics, and analyze computer-vision environmental layers with opacity overlays.
+        Search any global location. The system **automatically identifies 4 accurate spatial tiles** (NW, NE, SW, SE) 
+        that form a bigger square tile, detects common visual landmarks with connecting reference lines across seams, 
+        stitches the continuous georeferenced mosaic, and projects it onto the 3D globe and environmental CV workspace.
         """
     )
 
@@ -102,11 +103,11 @@ def render_tab_earth_explorer():
                 submitted = st.form_submit_button("🔍 Locate", use_container_width=True)
             if submitted and typed_loc != cur_loc:
                 st.session_state["ee_query"] = typed_loc
-                # Invalidate stale location-specific session states
+                # Invalidate stale location-specific cache
                 st.session_state.pop("ee_selected_scene_id", None)
                 st.session_state.pop("latest_sentinel_mosaic", None)
                 for k in list(st.session_state.keys()):
-                    if k.startswith("ee_obs_"):
+                    if k.startswith("ee_auto_mosaic_") or k.startswith("ee_obs_"):
                         st.session_state.pop(k, None)
                 st.rerun()
 
@@ -115,12 +116,12 @@ def render_tab_earth_explorer():
         pop_cols = st.columns(3)
         for idx, (p_lbl, p_val) in enumerate(list(POPULAR_LOCATIONS.items())[:6]):
             with pop_cols[idx % 3]:
-                if st.button(p_lbl, key=f"btn_ee_pop_{idx}"):
+                if st.button(p_lbl, key=f"btn_ee_pop_{idx}_{p_lbl[:4]}"):
                     st.session_state["ee_query"] = p_val
                     st.session_state.pop("ee_selected_scene_id", None)
                     st.session_state.pop("latest_sentinel_mosaic", None)
                     for k in list(st.session_state.keys()):
-                        if k.startswith("ee_obs_"):
+                        if k.startswith("ee_auto_mosaic_") or k.startswith("ee_obs_"):
                             st.session_state.pop(k, None)
                     st.rerun()
 
@@ -128,7 +129,9 @@ def render_tab_earth_explorer():
     active_query = st.session_state.get("ee_query", "Bengaluru, Karnataka, India")
     geocoded = geocode_user_location(active_query)
     lat, lon = geocoded["lat"], geocoded["lon"]
-    bbox = geocoded["bbox"]  # [min_lon, min_lat, max_lon, max_lat]
+    
+    # 40km radius bounding box to capture 2x2 intersecting swaths
+    bbox = [lon - 0.40, lat - 0.40, lon + 0.40, lat + 0.40]
 
     d_lon_km = (bbox[2] - bbox[0]) * 111.32 * np.cos(np.radians(lat))
     d_lat_km = (bbox[3] - bbox[1]) * 110.57
@@ -162,8 +165,8 @@ def render_tab_earth_explorer():
                     <strong style="color: #34d399; font-family: monospace; font-size: 0.85rem; margin-left: 6px;">{geocoded['target_utm']}</strong>
                 </div>
                 <div>
-                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">AOI BBox:</span>
-                    <code style="color: #a78bfa; font-size: 0.78rem;">[{bbox[0]:.4f}, {bbox[1]:.4f}, {bbox[2]:.4f}, {bbox[3]:.4f}]</code>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">2×2 AOI Bounds:</span>
+                    <code style="color: #a78bfa; font-size: 0.78rem;">[{bbox[0]:.2f}, {bbox[1]:.2f}, {bbox[2]:.2f}, {bbox[3]:.2f}]</code>
                 </div>
             </div>
         </div>
@@ -172,7 +175,7 @@ def render_tab_earth_explorer():
     )
 
     # Query Parameters Controls (Compact Bar)
-    col_prov, col_ep, col_cld, col_lim = st.columns([1.2, 1.2, 1.0, 0.8])
+    col_prov, col_ep, col_cld, col_dec = st.columns([1.2, 1.2, 1.0, 0.8])
     with col_prov:
         stac_provider = st.selectbox(
             "STAC Data Provider:",
@@ -198,49 +201,65 @@ def render_tab_earth_explorer():
             key="ee_cloud_slider"
         )
 
-    with col_lim:
-        query_limit = st.number_input("Max Scenes", min_value=2, max_value=20, value=6, step=1, key="ee_query_limit")
+    with col_dec:
+        decim_scale = st.slider(
+            "Decimation",
+            min_value=4, max_value=24, value=12,
+            key="ee_decim_slider",
+            help="Band decimation factor for responsive streaming."
+        )
 
-    # Discover actual Sentinel-2 scenes for this location and parameters
-    with st.spinner(f"Querying live Sentinel-2 catalogue for '{geocoded['name']}' ({selected_epoch_label})..."):
+    # 1. Discover live Sentinel-2 scenes for this location
+    with st.spinner(f"Querying live Sentinel-2 catalogue around '{geocoded['name']}'..."):
         discovered_scenes = search_sentinel2_scenes(
             bbox=bbox,
             datetime_range=datetime_range,
             provider=provider_key,
             max_cloud=max_cloud_thresh,
-            limit=int(query_limit)
+            limit=20
         )
 
     if not discovered_scenes:
         st.warning(
             f"⚠️ No Sentinel-2 observations found with cloud cover < {max_cloud_thresh}% in '{selected_epoch_label}'. "
-            "Broaden the historical epoch or increase the max cloud cover slider."
+            "Please broaden the historical epoch or increase the max cloud cover slider."
         )
         return
 
-    # Determine Active Selected Scene ID
-    valid_scene_ids = [s.id for s in discovered_scenes]
-    selected_scene_id = st.session_state.get("ee_selected_scene_id")
-    if not selected_scene_id or selected_scene_id not in valid_scene_ids:
-        selected_scene_id = valid_scene_ids[0]
-        st.session_state["ee_selected_scene_id"] = selected_scene_id
+    # 2. AUTOMATIC 4-TILE DETECTION (NW, NE, SW, SE QUADRANTS)
+    auto_4_scenes = auto_detect_2x2_tiles(discovered_scenes, target_lat=lat, target_lon=lon)
 
-    primary_scene = next(s for s in discovered_scenes if s.id == selected_scene_id)
+    # 3. AUTOMATIC STITCHING: Build 2x2 Square Mosaic Automatically
+    auto_mosaic_key = f"ee_auto_mosaic_{geocoded['name']}_{selected_epoch_label}_{decim_scale}"
+    
+    if auto_mosaic_key not in st.session_state:
+        with st.spinner(f"✨ Automatically detecting 4 quadrant tiles and stitching bigger square tile for {geocoded['name']}..."):
+            # Attempt streaming real 10m bands via rasterio
+            mosaic_data = build_real_sentinel2_mosaic(
+                scenes=auto_4_scenes,
+                target_crs=geocoded["target_utm"],
+                bbox=bbox,
+                decimation_scale=decim_scale,
+                stretch_val=2400.0
+            )
+            # Robust fallback to rapid preview mosaic if direct COG streaming is delayed
+            if not mosaic_data:
+                obs_list = []
+                for s in auto_4_scenes:
+                    obs_tile = retrieve_sentinel2_data(s, bands=["B04", "B03", "B02", "B08"], decimation_scale=decim_scale)
+                    if obs_tile:
+                        obs_list.append(obs_tile)
+                if obs_list:
+                    mosaic_data = build_georeferenced_mosaic(obs_list, target_crs=geocoded["target_utm"])
 
-    # Determine Active Sticker Image for 3D Globe Projection
-    current_stitched = st.session_state.get("latest_sentinel_mosaic")
-    if current_stitched is None:
-        # Check if selected scene has already been retrieved in memory
-        for k, v in st.session_state.items():
-            if k.startswith("ee_obs_") and getattr(v, "id", None) == primary_scene.id:
-                current_stitched = v.rgb
-                break
-    if current_stitched is None and primary_scene.preview_url:
-        current_stitched = primary_scene.preview_url
-    if current_stitched is None and os.path.exists("stitched_result.jpg"):
-        current_stitched = "stitched_result.jpg"
-    elif current_stitched is None and os.path.exists("tile_left.jpg"):
-        current_stitched = "tile_left.jpg"
+            if mosaic_data:
+                st.session_state[auto_mosaic_key] = mosaic_data
+                st.session_state["latest_sentinel_mosaic"] = mosaic_data.rgb
+
+    active_mosaic: ObservationData = st.session_state.get(auto_mosaic_key)
+    current_stitched_img = active_mosaic.rgb if active_mosaic else st.session_state.get("latest_sentinel_mosaic")
+    if current_stitched_img is None and auto_4_scenes[0].preview_url:
+        current_stitched_img = auto_4_scenes[0].preview_url
 
     # 3D Globe vs 2D Boundary Switcher
     c_mode1, c_mode2 = st.columns([2.2, 1.0])
@@ -248,7 +267,7 @@ def render_tab_earth_explorer():
         st.markdown(
             """
             <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px;">
-                <strong style="color: #00f0ff;">3D Spherical Surface Projection:</strong> The georeferenced satellite mosaic is curved and clamped directly onto the 3D Earth globe surface at its exact coordinates (lat/lon). Use <strong>[Zoom to Region]</strong> to fly into the sticker or <strong>[Full Orbit]</strong> to inspect the global planet.
+                <strong style="color: #00f0ff;">3D Spherical Surface Projection:</strong> The automatically stitched 4-tile square mosaic is curved and clamped directly onto the 3D Earth globe surface. Click <strong>[Zoom to Region]</strong> to fly down or <strong>[Full Orbit]</strong> to inspect the planet.
             </div>
             """,
             unsafe_allow_html=True
@@ -267,7 +286,7 @@ def render_tab_earth_explorer():
             lat=lat,
             lon=lon,
             bbox=bbox,
-            stitched_image=current_stitched,
+            stitched_image=current_stitched_img,
             height_px=540
         )
         components.html(globe_html, height=540, scrolling=False)
@@ -305,53 +324,53 @@ def render_tab_earth_explorer():
         st.pydeck_chart(deck, use_container_width=True)
 
     # -------------------------------------------------------------------------
-    # SYNCHRONIZED CHRONOLOGICAL SATELLITE TIMELINE (AUTHENTIC STAC OBSERVATIONS)
+    # SYNCHRONIZED CHRONOLOGICAL SATELLITE TIMELINE (UNIQUE STREAMLIT KEYS FIXED)
     # -------------------------------------------------------------------------
     st.markdown(
         f"""
         <div style="font-size: 0.8rem; color: #00f0ff; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; margin-top: 14px; margin-bottom: 8px;">
-            🛰️ Chronological Satellite Observations Archive — {len(discovered_scenes)} Live STAC Acquisitions for {geocoded['name']}
+            🛰️ Chronological Satellite Observations Archive — {len(discovered_scenes)} STAC Acquisitions for {geocoded['name']}
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # Display timeline cards in columns (including mosaic card if present)
-    has_mosaic = st.session_state.get("latest_sentinel_mosaic") is not None
-    total_cards = len(discovered_scenes) + (1 if has_mosaic else 0)
+    # Display timeline cards in columns (Mosaic first, then 4 detected tiles, then others)
+    total_cards = len(discovered_scenes) + (1 if active_mosaic else 0)
     card_cols = st.columns(min(6, total_cards))
 
     col_idx = 0
 
-    # 1. Mosaic Card (if generated)
-    if has_mosaic:
+    # 1. Mosaic Card
+    if active_mosaic is not None:
         with card_cols[col_idx % len(card_cols)]:
-            st.image(st.session_state["latest_sentinel_mosaic"], use_container_width=True)
+            st.image(active_mosaic.rgb, use_container_width=True)
             st.markdown(
                 """
                 <div style="font-size: 0.72rem; font-family: monospace; color: #34d399; text-align: center; margin-top: -4px;">
-                    <strong>✨ FUSED MOSAIC</strong><br>
-                    <span style="color: #38bdf8;">Multi-Tile 10m</span>
+                    <span class='tech-badge badge-emerald' style='font-size: 0.65rem; padding: 1px 4px;'>ACTIVE 2×2 MOSAIC</span><br>
+                    <strong>✨ FUSED SQUARE TILE</strong><br>
+                    <span style="color: #38bdf8;">4 Quadrants 10m</span>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
             col_idx += 1
 
-    # 2. Individual Live STAC Observations
+    # 2. Individual STAC Observations with 100% Unique Element Keys
+    auto_4_ids = set(s.id for s in auto_4_scenes)
     for sc in discovered_scenes:
         with card_cols[col_idx % len(card_cols)]:
-            is_active = (sc.id == primary_scene.id)
+            is_contributing_tile = (sc.id in auto_4_ids)
             thumb = sc.preview_url if sc.preview_url else "tile_left.jpg"
             st.image(thumb, use_container_width=True)
-            
-            border_color = "#00f0ff" if is_active else "#334155"
-            active_badge = "<span class='tech-badge badge-cyan' style='font-size: 0.65rem; padding: 1px 4px;'>ACTIVE</span><br>" if is_active else ""
-            
+
+            badge = "<span class='tech-badge badge-cyan' style='font-size: 0.62rem; padding: 1px 4px;'>QUADRANT TILE</span><br>" if is_contributing_tile else ""
+
             st.markdown(
                 f"""
-                <div style="font-size: 0.70rem; font-family: monospace; color: {'#00f0ff' if is_active else '#94a3b8'}; text-align: center; margin-top: -4px;">
-                    {active_badge}
+                <div style="font-size: 0.70rem; font-family: monospace; color: {'#00f0ff' if is_contributing_tile else '#94a3b8'}; text-align: center; margin-top: -4px;">
+                    {badge}
                     <strong>{sc.date_str}</strong><br>
                     <span style="color: #64748b;">{sc.platform} (10m)</span><br>
                     <span style="color: #fbbf24;">☁️ {sc.cloud_cover:.1f}%</span>
@@ -359,348 +378,177 @@ def render_tab_earth_explorer():
                 """,
                 unsafe_allow_html=True
             )
-            if not is_active:
-                if st.button("Select", key=f"btn_tl_sel_{sc.id[:18]}", use_container_width=True):
-                    st.session_state["ee_selected_scene_id"] = sc.id
-                    st.rerun()
+            # Unique element key containing both col_idx and full sc.id to prevent StreamlitDuplicateElementKey
+            unique_btn_key = f"btn_tl_sel_{col_idx}_{sc.id}"
+            if st.button("Inspect", key=unique_btn_key, use_container_width=True):
+                st.session_state["ee_selected_scene_id"] = sc.id
+                st.rerun()
+
             col_idx += 1
 
     # =========================================================================
-    # STAGE 2: LIVE STAC DATA DISCOVERY & OBSERVATION SELECTOR
+    # STAGE 2: 4-TILE QUADRANT METADATA
     # =========================================================================
     st.markdown("---")
-    st.markdown("### 🛰️ Stage 2: Selected Observation Assets & Mode")
+    st.markdown("### 🧩 Stage 2: Automatically Detected 4-Tile Quadrants")
 
-    scene_options = {
-        f"📅 {s.date_str} (Cloud: {s.cloud_cover:.1f}%) — {s.id[:38]}...": s
-        for s in discovered_scenes
-    }
-
-    col_sel_obs, col_obs_mode = st.columns([2.2, 1.0])
-
-    with col_sel_obs:
-        current_opt_keys = list(scene_options.keys())
-        default_idx = 0
-        for i, k in enumerate(current_opt_keys):
-            if scene_options[k].id == primary_scene.id:
-                default_idx = i
-                break
-        selected_obs_label = st.selectbox(
-            "Primary Observation to Stream & Process:",
-            options=current_opt_keys,
-            index=default_idx
-        )
-        if scene_options[selected_obs_label].id != primary_scene.id:
-            st.session_state["ee_selected_scene_id"] = scene_options[selected_obs_label].id
-            st.rerun()
-
-    with col_obs_mode:
-        obs_mode = st.radio(
-            "Processing Workflow:",
-            options=["Multi-Tile Georeferenced Mosaic", "Single Acquisition"],
-            index=0,
-            help="Multi-Tile Mosaic reprojects adjacent swaths, runs SIFT inlier diagnostics in the Stitching Laboratory, and merges them continuously."
-        )
-
-    # Inspect Selected Scene Assets
-    inspection = inspect_sentinel2_assets(primary_scene)
-    st.markdown(
-        f"""
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; margin-bottom: 12px;">
-            <div class="tech-badge badge-cyan">Scene: {primary_scene.id[:30]}...</div>
-            <div class="tech-badge badge-emerald">Acquired: {primary_scene.date_str}</div>
-            <div class="tech-badge badge-amber">Cloud: {primary_scene.cloud_cover:.1f}%</div>
-            <div class="tech-badge badge-purple">Native CRS: {primary_scene.crs}</div>
-            <div class="tech-badge {'badge-emerald' if inspection['is_analysis_ready'] else 'badge-amber'}">
-                {'Bands B02, B03, B04, B08 Ready' if inspection['is_analysis_ready'] else 'Preview Mode'}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # =========================================================================
-    # STAGE 3: RETRIEVAL & STITCHING LABORATORY
-    # =========================================================================
-    st.markdown("---")
-    st.markdown("### 🗺️ Stage 3: Generate Georeferenced Mosaic & Preprocess")
-
-    col_scale, col_stretch, col_fetch = st.columns([1.2, 1.2, 1.4])
-
-    with col_scale:
-        decim_scale = st.slider(
-            "Decimation Factor (Preview Decimation)",
-            min_value=4, max_value=24, value=12,
-            help="Sub-samples full 10,980 x 10,980 10m bands for rapid raster streaming."
-        )
-    with col_stretch:
-        reflectance_stretch = st.number_input(
-            "Reflectance Stretch (DN)",
-            min_value=1200.0, max_value=5000.0, value=2400.0, step=200.0
-        )
-    with col_fetch:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-        btn_retrieve = st.button("🚀 Stream COGs & Build Mosaic", use_container_width=True, key="btn_ee_stream")
-
-    obs_state_key = f"ee_obs_{primary_scene.id}_{decim_scale}_{obs_mode}"
-
-    if btn_retrieve or obs_state_key in st.session_state:
-        if btn_retrieve:
-            with st.spinner(f"Streaming authentic Sentinel-2 COGs (B04, B03, B02, B08) for {geocoded['name']}..."):
-                if obs_mode == "Single Acquisition" or len(discovered_scenes) < 2:
-                    obs_data = retrieve_sentinel2_data(
-                        primary_scene,
-                        bands=["B04", "B03", "B02", "B08"],
-                        decimation_scale=decim_scale,
-                        stretch_val=reflectance_stretch
-                    )
-                    mosaic_data = build_georeferenced_mosaic([obs_data]) if obs_data else None
-                else:
-                    scenes_to_mosaic = discovered_scenes[:min(4, len(discovered_scenes))]
-                    mosaic_data = build_real_sentinel2_mosaic(
-                        scenes=scenes_to_mosaic,
-                        target_crs=geocoded["target_utm"],
-                        bbox=bbox,
-                        decimation_scale=decim_scale,
-                        stretch_val=reflectance_stretch
-                    )
-                    if not mosaic_data:
-                        obs_data = retrieve_sentinel2_data(primary_scene, bands=["B04", "B03", "B02", "B08"], decimation_scale=decim_scale)
-                        mosaic_data = build_georeferenced_mosaic([obs_data]) if obs_data else None
-
-                if mosaic_data:
-                    st.session_state[obs_state_key] = mosaic_data
-                    st.session_state["latest_sentinel_mosaic"] = mosaic_data.rgb
-                    st.rerun()
-                else:
-                    st.error("Failed to stream satellite bands. Try adjusting cloud threshold or decimation.")
-                    return
-
-        active_obs: ObservationData = st.session_state.get(obs_state_key)
-        if not active_obs:
-            st.info("Click 'Stream COGs & Build Mosaic' to retrieve multi-spectral satellite observation.")
-            return
-
-        h, w = active_obs.rgb.shape[:2]
-        valid_px = int(np.count_nonzero(active_obs.valid_mask)) if active_obs.valid_mask is not None else h * w
-        valid_coverage_pct = round(valid_px / (h * w) * 100.0, 1)
-
-        # Overview View & Telemetry
-        col_m_view, col_m_telemetry = st.columns([2.0, 1.2])
-
-        with col_m_view:
-            st.image(active_obs.rgb, caption=f"True Color (RGB B04-B03-B02) — {active_obs.date_str} [{w}×{h} px]", use_container_width=True)
-
-        with col_m_telemetry:
+    q_labels = ["North-West (Tile 1)", "North-East (Tile 2)", "South-West (Tile 3)", "South-East (Tile 4)"]
+    q_cols = st.columns(4)
+    for idx, sc in enumerate(auto_4_scenes[:4]):
+        with q_cols[idx]:
+            parts = sc.id.split('_')
+            tc = [p for p in parts if p.startswith('T') and len(p) == 6]
+            code = tc[0] if tc else sc.id[:12]
             st.markdown(
                 f"""
-                <div class="telemetry-card">
-                    <div style="font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
-                        Mosaic Processing Telemetry
-                    </div>
-                    <div style="font-size: 1.0rem; color: #38bdf8; font-weight: 600; margin-top: 4px;">
-                        {active_obs.id[:32]}...
-                    </div>
-                    <div style="margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #e2e8f0;">
-                        Dimensions: <strong>{w} × {h} pixels</strong>
-                    </div>
-                    <div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #34d399;">
-                        Valid Data Coverage: <strong>{valid_coverage_pct}%</strong>
-                    </div>
-                    <div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #a78bfa;">
-                        Coordinate System: <strong>{active_obs.crs}</strong>
-                    </div>
-                    <div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #f59e0b;">
-                        Composite Mode: <strong>{'Multi-Tile Mosaic' if active_obs.is_composite else 'Single Scene'}</strong>
-                    </div>
-                    <div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #64748b;">
-                        Contributing Scenes: {len(active_obs.source_scenes)} tile(s)
+                <div class="telemetry-card" style="padding: 10px 12px; margin-bottom: 8px;">
+                    <div style="font-size: 0.70rem; color: #38bdf8; font-weight: 600; font-family: monospace;">{q_labels[idx]}</div>
+                    <div style="font-size: 0.85rem; color: #f1f5f9; font-weight: 700; margin-top: 2px;">{code}</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 4px;">
+                        • Date: <strong>{sc.date_str}</strong><br>
+                        • Cloud: <strong>{sc.cloud_cover:.1f}%</strong><br>
+                        • Platform: <strong>{sc.platform}</strong>
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-        # ---------------------------------------------------------------------
-        # DEDICATED STITCHING LABORATORY | TILE ALIGNMENT AND MOSAICING
-        # ---------------------------------------------------------------------
-        if active_obs.stitching_lab is not None:
-            lab: StitchingLaboratoryData = active_obs.stitching_lab
+    # =========================================================================
+    # STAGE 3: INTERMEDIATE LANDMARK DETECTION & 2x2 STITCHING PROCESS
+    # =========================================================================
+    st.markdown("---")
+    st.markdown("### 🗺️ Stage 3: Intermediate Landmark Detection & 2×2 Stitching Process")
 
-            st.markdown(
-                """
-                <div class="telemetry-card" style="margin-top: 18px; margin-bottom: 12px; border-left: 3px solid #38bdf8;">
-                    <div style="font-size: 1.05rem; font-weight: 600; color: #00f0ff;">
-                        🔬 Stitching Laboratory | Tile Alignment and Mosaicing
-                    </div>
-                    <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 4px;">
-                        Step-by-step intermediate inspection of contributing satellite swaths: raw tiles, radiometric valid masks, 
-                        geospatial reprojection, SIFT & RANSAC inlier verification, overlap blending, and seamless continuous raster fusion.
-                    </div>
+    if active_mosaic and active_mosaic.stitching_lab:
+        lab: StitchingLaboratoryData = active_mosaic.stitching_lab
+
+        st.markdown(
+            """
+            <div class="telemetry-card" style="border-left: 3px solid #38bdf8; margin-bottom: 12px;">
+                <div style="font-size: 1.0rem; font-weight: 600; color: #00f0ff;">
+                    🔬 Intermediate Landmark Detection & Reference Lines Visualization
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+                <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 4px;">
+                    Shows how <strong>common visual landmarks</strong> (roads, waterways, field boundaries) are identified across 
+                    the 4 smaller pictures and <strong>reference lines</strong> are drawn between them across horizontal and vertical seams to aid stitching.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            lab_step = st.radio(
-                "Laboratory Inspection Stage:",
-                options=[
-                    "1️⃣ Step A: Source Tiles & Swath Footprints",
-                    "2️⃣ Step B: Preprocessing & Grid Alignment",
-                    "3️⃣ Step C: Landmark SIFT & Inlier Verification",
-                    "4️⃣ Step D: Geometric Overlap & Alpha/Checkerboard",
-                    "5️⃣ Step E: Seamline Boundary & Final Continuous Mosaic"
-                ],
-                horizontal=True,
-                index=0,
-                key="ee_lab_step_radio"
-            )
+        stitching_view_mode = st.radio(
+            "Stitching Laboratory View:",
+            options=[
+                "📐 2×2 Multi-Seam Landmark Reference Lines Canvas",
+                "🔍 Pairwise SIFT Inlier Verification & Residual Diagnostics",
+                "🎛️ Overlap Alpha-Blend & Checkerboard Split Comparison",
+                "✨ Final Continuous Fused Square Mosaic"
+            ],
+            horizontal=True,
+            index=0
+        )
 
-            if "1️⃣" in lab_step:
-                st.markdown("#### Step A: Contributing Source Tiles")
-                st.write(f"Detected **{len(lab.tiles)}** authentic Sentinel-2 swath tiles intersecting this geographic AOI.")
-                
-                tile_cols = st.columns(min(4, len(lab.tiles)))
-                for idx, t in enumerate(lab.tiles):
-                    with tile_cols[idx % len(tile_cols)]:
-                        st.image(t.raw_rgb, caption=f"Tile {idx + 1}: {t.id[:24]}... ({t.date_str})", use_container_width=True)
-                        st.markdown(
-                            f"""
-                            <div style="font-size: 0.72rem; font-family: monospace; color: #94a3b8;">
-                                • Scene ID: <code>{t.id[:20]}...</code><br>
-                                • Date: <strong>{t.date_str}</strong><br>
-                                • Sensor: <strong>{t.platform}</strong><br>
-                                • Cloud: <strong>{t.cloud_cover:.1f}%</strong><br>
-                                • Native CRS: <strong>{t.raw_crs}</strong><br>
-                                • Dimensions: <strong>{t.raw_shape[1]}×{t.raw_shape[0]} px</strong><br>
-                                • Footprint: <code>[{t.bbox[0]:.2f}, {t.bbox[1]:.2f}, {t.bbox[2]:.2f}, {t.bbox[3]:.2f}]</code>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
+        if "📐" in stitching_view_mode:
+            # 2x2 Multi-Seam Landmark Reference Lines Canvas
+            if lab.multi_seam_canvas is not None:
+                st.image(
+                    lab.multi_seam_canvas,
+                    caption="2×2 Quadrant Alignment Canvas: Common landmarks detected via SIFT. Emerald green reference lines bridge horizontal seams (NW ↔ NE, SW ↔ SE); Cyan reference lines bridge vertical seams (NW ↔ SW, NE ↔ SE).",
+                    use_container_width=True
+                )
+            elif lab.correspondence is not None:
+                st.image(lab.correspondence.match_image_all, caption="Landmark Correspondence Lines Across Overlapping Swath", use_container_width=True)
 
-            elif "2️⃣" in lab_step:
-                st.markdown("#### Step B: Radiometric & Grid Preprocessing")
-                st.write("Inspecting raw pixel values, cloud & invalid pixel masks, and common UTM grid reprojection.")
+        elif "🔍" in stitching_view_mode:
+            # Pairwise SIFT Inlier Diagnostics
+            if lab.correspondence is not None:
+                corr = lab.correspondence
+                c_k1, c_k2, c_cand, c_inl, c_rat, c_err = st.columns(6)
+                c_k1.metric("Tile 1 Keypoints", f"{corr.num_kp1:,}")
+                c_k2.metric("Tile 2 Keypoints", f"{corr.num_kp2:,}")
+                c_cand.metric("Lowe's 0.75 Matches", corr.num_candidate_matches)
+                c_inl.metric("Verified Inliers", corr.num_inliers)
+                c_rat.metric("Inlier Ratio", f"{corr.inlier_ratio}%")
+                c_err.metric("Reproj Error (Median)", f"{corr.median_reprojection_error} px")
 
-                for idx, t in enumerate(lab.tiles):
-                    st.markdown(f"**Tile {idx + 1} Pipeline:** `{t.id[:28]}...`")
-                    c_p1, c_p2, c_p3 = st.columns(3)
-                    with c_p1:
-                        st.image(t.raw_rgb, caption=f"Raw True-Color [{t.raw_shape[1]}×{t.raw_shape[0]} px]", use_container_width=True)
-                    with c_p2:
-                        st.image(t.valid_mask, caption="Valid Data / Cloud Mask (255 = Clear, 0 = Void)", use_container_width=True)
-                    with c_p3:
-                        st.image(t.reprojected_rgb, caption=f"Reprojected to {t.reprojected_crs} [{t.reprojected_shape[1]}×{t.reprojected_shape[0]} px]", use_container_width=True)
-                    st.markdown("<hr style='border-color: rgba(255,255,255,0.06); margin: 8px 0;'>", unsafe_allow_html=True)
+                corr_filter = st.radio(
+                    "Display Filter:",
+                    options=["All Landmark Matches (Green: Inliers, Red: Outliers)", "Verified Inliers Only", "Rejected Outliers Only"],
+                    horizontal=True
+                )
 
-            elif "3️⃣" in lab_step:
-                st.markdown("#### Step C: Landmark & Feature Detection (SIFT & RANSAC)")
-                if lab.correspondence is not None:
-                    corr = lab.correspondence
+                if "All" in corr_filter:
+                    st.image(corr.match_image_all, caption="Side-by-side landmark correspondence lines (Green: RANSAC verified | Red: Outliers)", use_container_width=True)
+                elif "Inliers" in corr_filter:
+                    st.image(corr.match_image_inliers, caption="Verified Landmark Inliers Across Tile Boundary", use_container_width=True)
+                else:
+                    st.image(corr.match_image_outliers, caption="Rejected Outlier Matches", use_container_width=True)
 
-                    # Diagnostics Strip
-                    c_k1, c_k2, c_cand, c_inl, c_rat, c_err = st.columns(6)
-                    c_k1.metric("Tile 1 Keypoints", f"{corr.num_kp1:,}")
-                    c_k2.metric("Tile 2 Keypoints", f"{corr.num_kp2:,}")
-                    c_cand.metric("Lowe's 0.75 Matches", corr.num_candidate_matches)
-                    c_inl.metric("Verified Inliers", corr.num_inliers)
-                    c_rat.metric("Inlier Ratio", f"{corr.inlier_ratio}%")
-                    c_err.metric("Median Reproj Error", f"{corr.median_reprojection_error} px")
+        elif "🎛️" in stitching_view_mode:
+            # Overlap Alpha-Blend & Checkerboard Split
+            if lab.correspondence is not None:
+                corr = lab.correspondence
+                col_ab_ctrl, col_ab_view = st.columns([1.2, 2.0])
 
-                    match_view = st.radio(
-                        "Correspondence Visualization Mode:",
-                        options=["All Correspondences (Green: Inliers, Red: Outliers)", "Verified Inliers Only", "Rejected Outliers Only"],
-                        horizontal=True
-                    )
-
-                    if "All" in match_view:
-                        st.image(corr.match_image_all, caption="Side-by-Side SIFT Matches (Green: RANSAC verified inliers | Red: Rejected outliers)", use_container_width=True)
-                    elif "Inliers" in match_view:
-                        st.image(corr.match_image_inliers, caption="Verified Landmark Inliers Across Tile Swaths", use_container_width=True)
-                    else:
-                        st.image(corr.match_image_outliers, caption="Rejected Outlier Matches", use_container_width=True)
-
+                with col_ab_ctrl:
+                    ov_alpha = st.slider("Alpha Blend Overlap (%):", 0, 100, 50, help="0% = Tile 1 only | 100% = Tile 2 only | 50% = Equal blend")
                     st.markdown(
                         f"""
-                        <div class="telemetry-card" style="margin-top: 10px; font-size: 0.75rem; color: #94a3b8;">
-                            <strong>Analytical Note:</strong> Coordinate-based UTM reprojection serves as the primary spatial grid positioning 
-                            for Sentinel-2 Level-2A products. Classical SIFT landmark matching operates across the seam overlap zone 
-                            to verify geometric alignment continuity without inventing artificial deformations.
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.info("Single-scene observation active. Multi-tile SIFT diagnostics activate when two or more swaths overlap.")
-
-            elif "4️⃣" in lab_step:
-                st.markdown("#### Step D: Geometric Alignment & Overlap Inspection")
-                if lab.correspondence is not None:
-                    corr = lab.correspondence
-
-                    align_tab1, align_tab2 = st.tabs(["🎛️ Interactive Alpha-Blended Overlay", "🏁 Checkerboard Split View"])
-
-                    with align_tab1:
-                        c_sl, c_im = st.columns([1.2, 2.0])
-                        with c_sl:
-                            alpha_slider = st.slider("Tile 1 vs Tile 2 Alpha Blend (%):", 0, 100, 50, help="0% = 100% Tile 1 | 100% = 100% Tile 2 | 50% = Equal blend")
-                            st.markdown(
-                                f"""
-                                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">
-                                    Drag the slider to dynamically verify seamless continuity of linear features (roads, waterways, field boundaries) 
-                                    across the overlapping swath region.
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-                        with c_im:
-                            # Dynamic blend
-                            t1_ov = lab.tiles[0].reprojected_rgb[:corr.overlap_shape[0], :corr.overlap_shape[1]]
-                            t2_ov = lab.tiles[1].reprojected_rgb[:corr.overlap_shape[0], :corr.overlap_shape[1]]
-                            a = alpha_slider / 100.0
-                            dyn_blend = cv2.addWeighted(t1_ov, 1.0 - a, t2_ov, a, 0)
-                            st.image(dyn_blend, caption=f"Overlap Alpha Blend ({100 - alpha_slider}% Tile 1 / {alpha_slider}% Tile 2)", use_container_width=True)
-
-                    with align_tab2:
-                        st.image(corr.checkerboard_comparison, caption="Alternating 32px Checkerboard Comparison (Inspect edge continuity across block boundaries)", use_container_width=True)
-
-                else:
-                    st.info("Single-scene observation active. Overlap alignment activates for multi-tile mosaics.")
-
-            elif "5️⃣" in lab_step:
-                st.markdown("#### Step E: Seamline Boundary & Final Continuous Mosaic")
-                col_seam_ctrl, col_seam_view = st.columns([1.0, 2.2])
-
-                with col_seam_ctrl:
-                    show_seam = st.checkbox("Highlight Seamline Boundary Cut", value=True)
-                    st.markdown(
-                        f"""
-                        <div class="telemetry-card" style="margin-top: 8px;">
-                            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">Fusion Diagnostics</div>
-                            <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600; margin-top: 4px;">{lab.stitching_method}</div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px;">
-                                • Target Coordinate System: <strong>{lab.crs}</strong><br>
-                                • Final Grid Shape: <strong>{lab.final_shape[1]} × {lab.final_shape[0]} px</strong><br>
-                                • Estimated AOI Area: <strong>{lab.coverage_km2} km²</strong><br>
-                                • Overlap Resolution: <strong>Priority Valid Mask + Linear Feathering</strong>
-                            </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">
+                            Inspect edge alignment continuity across the overlapping swath seam. 
+                            Features such as roads, rivers, and topography remain sharp without ghosting.
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
 
-                with col_seam_view:
-                    display_img = lab.seamline_preview if show_seam else lab.merged_rgb
-                    st.image(display_img, caption="Fused Georeferenced Continuous Mosaic" + (" (Cyan dashed cutline indicates swath seam boundary)" if show_seam else ""), use_container_width=True)
+                with col_ab_view:
+                    ov_h, ov_w = corr.overlap_shape
+                    t1_ov = lab.tiles[0].reprojected_rgb[:ov_h, :ov_w]
+                    t2_ov = lab.tiles[1].reprojected_rgb[:ov_h, :ov_w]
+                    a_val = ov_alpha / 100.0
+                    dyn_blend = cv2.addWeighted(t1_ov, 1.0 - a_val, t2_ov, a_val, 0)
+                    st.image(dyn_blend, caption=f"Dynamic Overlap Blend ({100 - ov_alpha}% Tile 1 / {ov_alpha}% Tile 2)", use_container_width=True)
 
-        # =========================================================================
-        # STAGE 4: ENVIRONMENTAL COMPUTER VISION WORKSPACE
-        # =========================================================================
-        st.markdown("---")
-        st.markdown("### 🌿 Stage 4: Environmental Computer Vision Workspace")
+                st.markdown("#### 🏁 Alternating Checkerboard Split View")
+                st.image(corr.checkerboard_comparison, caption="Alternating 32px Checkerboard Blocks: inspect linear feature continuity across square block borders", use_container_width=True)
 
-        env_layers: EnvironmentalLayers = calculate_environmental_layers(active_obs)
+        elif "✨" in stitching_view_mode:
+            # Final Stitched Bigger Square Tile
+            col_fn_view, col_fn_meta = st.columns([2.0, 1.2])
+            with col_fn_view:
+                show_seam_lines = st.checkbox("Show Seamline Cut Boundaries", value=False)
+                disp_raster = lab.seamline_preview if show_seam_lines else lab.merged_rgb
+                st.image(disp_raster, caption=f"Stitched Continuous Bigger Square Mosaic ({active_mosaic.date_str}) [{lab.final_shape[1]}×{lab.final_shape[0]} px]", use_container_width=True)
+
+            with col_fn_meta:
+                st.markdown(
+                    f"""
+                    <div class="telemetry-card">
+                        <div style="font-size: 0.72rem; color: #64748b; font-family: monospace; text-transform: uppercase;">Square Mosaic Telemetry</div>
+                        <div style="font-size: 0.95rem; color: #38bdf8; font-weight: 700; margin-top: 4px;">4-Tile Fused Square</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px;">
+                            • Total Dimensions: <strong>{lab.final_shape[1]} × {lab.final_shape[0]} px</strong><br>
+                            • Coordinate System: <strong>{lab.crs}</strong><br>
+                            • Total Mapped Area: <strong>{lab.coverage_km2} km²</strong><br>
+                            • Overlap Fusion: <strong>Priority Valid Mask + Linear Feathering</strong><br>
+                            • Contributing Tiles: <strong>{len(lab.tiles)} swaths</strong>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+    # =========================================================================
+    # STAGE 4: ENVIRONMENTAL COMPUTER VISION WORKSPACE
+    # =========================================================================
+    st.markdown("---")
+    st.markdown("### 🌿 Stage 4: Environmental Computer Vision Workspace")
+
+    if active_mosaic is not None:
+        env_layers: EnvironmentalLayers = calculate_environmental_layers(active_mosaic)
         stats = env_layers.stats
 
         # Metrics Strip
@@ -736,13 +584,12 @@ def render_tab_earth_explorer():
             )
 
         alpha = overlay_opacity / 100.0
-        bg_rgb = active_obs.rgb
+        bg_rgb = active_mosaic.rgb
 
         # Render Selected Layer
         if "NDVI" in cv_layer_choice:
             col_v1, col_v2 = st.columns([2.0, 1.1])
             with col_v1:
-                # Colorize NDVI
                 ndvi_valid = np.nan_to_num(env_layers.ndvi, nan=0.0)
                 norm_ndvi = np.clip((ndvi_valid + 0.2) / 1.0, 0, 1)
                 ndvi_cmap = plt.cm.RdYlGn(norm_ndvi)[:, :, :3]
@@ -754,10 +601,9 @@ def render_tab_earth_explorer():
                 fig.patch.set_facecolor('#070b14')
                 ax.set_facecolor('#070b14')
                 im = ax.imshow(blended)
-                ax.set_title(f"NDVI Vegetation Canopy Index — Sentinel-2 ({active_obs.date_str}) [Opacity: {overlay_opacity}%]", color="#00f0ff", fontsize=11, fontfamily='monospace')
+                ax.set_title(f"NDVI Vegetation Canopy Index — Sentinel-2 ({active_mosaic.date_str}) [Opacity: {overlay_opacity}%]", color="#00f0ff", fontsize=11, fontfamily='monospace')
                 ax.axis("off")
 
-                # Colorbar
                 sm = plt.cm.ScalarMappable(cmap="RdYlGn", norm=plt.Normalize(vmin=-0.2, vmax=0.8))
                 sm.set_array([])
                 cbar = fig.colorbar(sm, ax=ax, orientation="horizontal", pad=0.04, fraction=0.046)
@@ -768,7 +614,6 @@ def render_tab_earth_explorer():
                 plt.close(fig)
 
             with col_v2:
-                # NDVI Histogram & Stats
                 fig_h, ax_h = plt.subplots(figsize=(5, 3.5))
                 fig_h.patch.set_facecolor('#070b14')
                 ax_h.set_facecolor('#070b14')
@@ -799,9 +644,9 @@ def render_tab_earth_explorer():
                 )
 
         elif "False Color" in cv_layer_choice:
-            if active_obs.cir is not None:
+            if active_mosaic.cir is not None:
                 st.image(
-                    active_obs.cir,
+                    active_mosaic.cir,
                     caption="Color-Infrared Composite (NIR B08 → Red, Red B04 → Green, Green B03 → Blue) — Vibrant crimson highlights healthy vegetative canopy",
                     use_container_width=True
                 )
@@ -822,7 +667,7 @@ def render_tab_earth_explorer():
                 fig.patch.set_facecolor('#070b14')
                 ax.set_facecolor('#070b14')
                 im = ax.imshow(blended)
-                ax.set_title(f"NDWI McFeeters Surface Water Extent — Sentinel-2 ({active_obs.date_str})", color="#38bdf8", fontsize=11, fontfamily='monospace')
+                ax.set_title(f"NDWI McFeeters Surface Water Extent — Sentinel-2 ({active_mosaic.date_str})", color="#38bdf8", fontsize=11, fontfamily='monospace')
                 ax.axis("off")
                 sm = plt.cm.ScalarMappable(cmap="Blues", norm=plt.Normalize(vmin=-0.4, vmax=0.4))
                 sm.set_array([])
@@ -955,7 +800,7 @@ def render_tab_earth_explorer():
             """
         )
 
-        avail_other_scenes = [s for s in discovered_scenes if s.id != primary_scene.id]
+        avail_other_scenes = [s for s in discovered_scenes if s.id not in auto_4_ids]
 
         if not avail_other_scenes:
             st.info(
@@ -973,13 +818,14 @@ def render_tab_earth_explorer():
                 selected_t2_label = st.selectbox(
                     "Select Secondary Comparison Epoch (t0 / Historical):",
                     options=list(other_options.keys()),
-                    index=len(other_options) - 1
+                    index=len(other_options) - 1,
+                    key="ee_t2_selectbox"
                 )
                 secondary_scene = other_options[selected_t2_label]
 
             with col_t2_btn:
                 st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                btn_align_temporal = st.button("⚖️ Align Grid & Run ΔNDVI Change", use_container_width=True)
+                btn_align_temporal = st.button("⚖️ Align Grid & Run ΔNDVI Change", use_container_width=True, key="btn_run_bitemporal")
 
             t2_state_key = f"ee_t2_{secondary_scene.id}_{decim_scale}"
 
@@ -989,7 +835,7 @@ def render_tab_earth_explorer():
                         t2_obs = retrieve_sentinel2_data(
                             secondary_scene,
                             decimation_scale=decim_scale,
-                            stretch_val=reflectance_stretch
+                            stretch_val=2400.0
                         )
                         if t2_obs:
                             st.session_state[t2_state_key] = t2_obs
@@ -997,18 +843,18 @@ def render_tab_earth_explorer():
                             st.error("Failed to retrieve secondary scene.")
 
                 obs_t2 = st.session_state.get(t2_state_key)
-                if obs_t2:
-                    crop0, crop1, delta_ndvi, t_meta = align_bitemporal_observations(obs_t2, active_obs)
+                if obs_t2 and active_mosaic:
+                    crop0, crop1, delta_ndvi, t_meta = align_bitemporal_observations(obs_t2, active_mosaic)
 
                     st.success(
-                        f"✅ Harmonized Bi-Temporal Grid: {obs_t2.date_str} (t0) vs {active_obs.date_str} (t1) | "
+                        f"✅ Harmonized Bi-Temporal Grid: {obs_t2.date_str} (t0) vs {active_mosaic.date_str} (t1) | "
                         f"Common Overlap: {t_meta['overlap_pct']}% ({t_meta['target_shape'][1]}×{t_meta['target_shape'][0]} px)"
                     )
 
                     col_comp_img, col_comp_delta = st.columns(2)
                     with col_comp_img:
-                        st.write(f"**Epoch t0:** `{obs_t2.date_str}` vs **Epoch t1:** `{active_obs.date_str}`")
-                        st.image(crop1, caption=f"Aligned Scene t1 ({active_obs.date_str})", use_container_width=True)
+                        st.write(f"**Epoch t0:** `{obs_t2.date_str}` vs **Epoch t1:** `{active_mosaic.date_str}`")
+                        st.image(crop1, caption=f"Aligned Scene t1 ({active_mosaic.date_str})", use_container_width=True)
 
                     with col_comp_delta:
                         fig, ax = plt.subplots(figsize=(8, 5))
@@ -1030,13 +876,6 @@ def render_tab_earth_explorer():
         st.markdown("---")
         st.markdown("### 🧠 Stage 6: Evidence-Based AI Environmental Investigation")
 
-        st.markdown(
-            """
-            *Ask targeted questions regarding the measured environmental indicators. 
-            The investigator strictly distinguishes empirical sensor measurements from external knowledge and unknowns.*
-            """
-        )
-
         sample_questions = [
             "What does the vegetation index indicate in this area?",
             "Which areas have the highest and lowest NDVI?",
@@ -1048,16 +887,17 @@ def render_tab_earth_explorer():
         selected_q = None
         for i, sq in enumerate(sample_questions):
             with q_cols[i]:
-                if st.button(sq, key=f"btn_sq_{i}"):
+                if st.button(sq, key=f"btn_sq_{i}_{sq[:6]}"):
                     selected_q = sq
 
         user_q = st.text_input(
             "Or ask any question about the retrieved observation:",
-            value=selected_q if selected_q else "What does the vegetation index indicate in this area?"
+            value=selected_q if selected_q else "What does the vegetation index indicate in this area?",
+            key="ee_ai_input_text"
         )
 
         if st.button("💬 Run AI Investigation", key="btn_run_ai_ee"):
-            _render_ai_investigation_response(user_q, active_obs, env_layers, geocoded)
+            _render_ai_investigation_response(user_q, active_mosaic, env_layers, geocoded)
 
 
 def _render_ai_investigation_response(

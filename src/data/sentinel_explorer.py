@@ -97,6 +97,7 @@ class StitchingLaboratoryData:
     crs: str
     coverage_km2: float
     stitching_method: str
+    multi_seam_canvas: Optional[np.ndarray] = None
 
 
 @dataclass
@@ -480,6 +481,113 @@ def draw_sift_correspondence_canvas(
     return canvas
 
 
+def create_2x2_multi_seam_landmark_canvas(
+    tile_images: List[np.ndarray],
+    tile_labels: Optional[List[str]] = None,
+    margin: int = 35
+) -> Optional[np.ndarray]:
+    """
+    Assembles a 2x2 quadrant layout of 4 smaller pictures and draws cross-tile reference lines
+    between identified matching landmarks across both horizontal and vertical seams.
+    """
+    if len(tile_images) < 4:
+        return None
+    h = min(img.shape[0] for img in tile_images[:4])
+    w = min(img.shape[1] for img in tile_images[:4])
+
+    t_nw = cv2.resize(tile_images[0], (w, h))
+    t_ne = cv2.resize(tile_images[1], (w, h))
+    t_sw = cv2.resize(tile_images[2], (w, h))
+    t_se = cv2.resize(tile_images[3], (w, h))
+
+    canvas_h = h * 2 + margin
+    canvas_w = w * 2 + margin
+    canvas = np.full((canvas_h, canvas_w, 3), 10, dtype=np.uint8)
+
+    # Place tiles in 2x2 quadrant positions
+    canvas[0:h, 0:w] = t_nw
+    canvas[0:h, w + margin:w * 2 + margin] = t_ne
+    canvas[h + margin:h * 2 + margin, 0:w] = t_sw
+    canvas[h + margin:h * 2 + margin, w + margin:w * 2 + margin] = t_se
+
+    sift = cv2.SIFT_create(400)
+
+    def draw_seam_matches(img_a, img_b, off_a, off_b, color, max_lines=25):
+        g_a = cv2.cvtColor(img_a, cv2.COLOR_RGB2GRAY)
+        g_b = cv2.cvtColor(img_b, cv2.COLOR_RGB2GRAY)
+        kp_a, des_a = sift.detectAndCompute(g_a, None)
+        kp_b, des_b = sift.detectAndCompute(g_b, None)
+        if des_a is not None and des_b is not None and len(des_a) >= 4 and len(des_b) >= 4:
+            bf = cv2.BFMatcher(cv2.NORM_L2)
+            matches = bf.knnMatch(des_a, des_b, k=2)
+            good = [m[0] for m in matches if len(m) == 2 and m[0].distance < 0.8 * m[1].distance]
+            for m in good[:max_lines]:
+                p1 = (int(round(kp_a[m.queryIdx].pt[0] + off_a[0])), int(round(kp_a[m.queryIdx].pt[1] + off_a[1])))
+                p2 = (int(round(kp_b[m.trainIdx].pt[0] + off_b[0])), int(round(kp_b[m.trainIdx].pt[1] + off_b[1])))
+                cv2.line(canvas, p1, p2, color, 2, cv2.LINE_AA)
+                cv2.circle(canvas, p1, 4, (0, 240, 255), -1, cv2.LINE_AA)
+                cv2.circle(canvas, p2, 4, (0, 240, 255), -1, cv2.LINE_AA)
+
+    # 1. Horizontal seam: NW <-> NE (Emerald Green)
+    draw_seam_matches(t_nw, t_ne, (0, 0), (w + margin, 0), (52, 211, 153), 25)
+    # 2. Horizontal seam: SW <-> SE (Emerald Green)
+    draw_seam_matches(t_sw, t_se, (0, h + margin), (w + margin, h + margin), (52, 211, 153), 25)
+    # 3. Vertical seam: NW <-> SW (Cyan)
+    draw_seam_matches(t_nw, t_sw, (0, 0), (0, h + margin), (56, 189, 248), 25)
+    # 4. Vertical seam: NE <-> SE (Cyan)
+    draw_seam_matches(t_ne, t_se, (w + margin, 0), (w + margin, h + margin), (56, 189, 248), 25)
+
+    lbls = tile_labels if tile_labels else ["Tile 1 (North-West)", "Tile 2 (North-East)", "Tile 3 (South-West)", "Tile 4 (South-East)"]
+    cv2.putText(canvas, lbls[0], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, lbls[1], (w + margin + 10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, lbls[2], (10, h + margin + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, lbls[3], (w + margin + 10, h + margin + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 255), 2, cv2.LINE_AA)
+
+    return canvas
+
+
+def auto_detect_2x2_tiles(
+    scenes: List[SentinelSceneMetadata],
+    target_lat: float,
+    target_lon: float
+) -> List[SentinelSceneMetadata]:
+    """
+    Automatically detects 4 accurate spatial tiles around target coordinates
+    that when stitched form a complete 2x2 quadrant square tile (NW, NE, SW, SE).
+    """
+    if len(scenes) <= 4:
+        return scenes
+
+    unique: Dict[str, SentinelSceneMetadata] = {}
+    for s in scenes:
+        parts = s.id.split('_')
+        tc = [p for p in parts if p.startswith('T') and len(p) == 6]
+        code = tc[0] if tc else s.id
+        if code not in unique or s.cloud_cover < unique[code].cloud_cover:
+            unique[code] = s
+
+    tile_list = list(unique.values())
+    if len(tile_list) < 4:
+        return sorted(scenes, key=lambda s: s.cloud_cover)[:4]
+
+    centroids = []
+    for s in tile_list:
+        c_lon = (s.bbox[0] + s.bbox[2]) / 2.0
+        c_lat = (s.bbox[1] + s.bbox[3]) / 2.0
+        centroids.append((s, c_lat, c_lon))
+
+    # Sort into NW, NE, SW, SE
+    nw = [x for x in centroids if x[1] >= target_lat and x[2] <= target_lon]
+    ne = [x for x in centroids if x[1] >= target_lat and x[2] > target_lon]
+    sw = [x for x in centroids if x[1] < target_lat and x[2] <= target_lon]
+    se = [x for x in centroids if x[1] < target_lat and x[2] > target_lon]
+
+    if nw and ne and sw and se:
+        return [nw[0][0], ne[0][0], sw[0][0], se[0][0]]
+
+    return sorted(tile_list, key=lambda s: s.cloud_cover)[:4]
+
+
 def compute_stitching_laboratory(
     tile_infos: List[StitchingTileInfo],
     merged_rgb: np.ndarray,
@@ -576,6 +684,14 @@ def compute_stitching_laboratory(
             transform_model="Geospatial UTM Reprojection + SIFT Partial Affine (4-DoF)"
         )
 
+    # Multi-seam 2x2 grid landmark reference lines canvas
+    multi_seam_canvas = None
+    if len(tile_infos) >= 4:
+        multi_seam_canvas = create_2x2_multi_seam_landmark_canvas(
+            [t.raw_rgb for t in tile_infos[:4]],
+            [f"Tile {i+1} ({pos}) - {tile_infos[i].id[:16]}..." for i, pos in enumerate(["NW", "NE", "SW", "SE"])]
+        )
+
     # Seamline preview: highlight cutline where Tile 1 joins Tile 2
     seamline_img = merged_rgb.copy()
     if len(tile_infos) >= 2:
@@ -594,7 +710,8 @@ def compute_stitching_laboratory(
         final_shape=(h_m, w_m),
         crs=target_crs,
         coverage_km2=area_km2,
-        stitching_method=stitching_method
+        stitching_method=stitching_method,
+        multi_seam_canvas=multi_seam_canvas
     )
 
 
@@ -787,7 +904,42 @@ def build_georeferenced_mosaic(
     th = min(o.rgb.shape[0] for o in observations)
     tw = min(o.rgb.shape[1] for o in observations)
 
-    if len(observations) >= 2:
+    if len(observations) >= 4:
+        top_rgb = np.hstack((observations[0].rgb[:th, :tw], observations[1].rgb[:th, :tw]))
+        bot_rgb = np.hstack((observations[2].rgb[:th, :tw], observations[3].rgb[:th, :tw]))
+        m_rgb = np.vstack((top_rgb, bot_rgb))
+
+        m_nir = None
+        if all(o.nir is not None for o in observations[:4]):
+            top_nir = np.hstack((observations[0].nir[:th, :tw], observations[1].nir[:th, :tw]))
+            bot_nir = np.hstack((observations[2].nir[:th, :tw], observations[3].nir[:th, :tw]))
+            m_nir = np.vstack((top_nir, bot_nir))
+
+        m_red = None
+        if all(o.red is not None for o in observations[:4]):
+            top_red = np.hstack((observations[0].red[:th, :tw], observations[1].red[:th, :tw]))
+            bot_red = np.hstack((observations[2].red[:th, :tw], observations[3].red[:th, :tw]))
+            m_red = np.vstack((top_red, bot_red))
+
+        m_green = None
+        if all(o.green is not None for o in observations[:4]):
+            top_green = np.hstack((observations[0].green[:th, :tw], observations[1].green[:th, :tw]))
+            bot_green = np.hstack((observations[2].green[:th, :tw], observations[3].green[:th, :tw]))
+            m_green = np.vstack((top_green, bot_green))
+
+        m_blue = None
+        if all(o.blue is not None for o in observations[:4]):
+            top_blue = np.hstack((observations[0].blue[:th, :tw], observations[1].blue[:th, :tw]))
+            bot_blue = np.hstack((observations[2].blue[:th, :tw], observations[3].blue[:th, :tw]))
+            m_blue = np.vstack((top_blue, bot_blue))
+
+        m_valid = None
+        if all(o.valid_mask is not None for o in observations[:4]):
+            top_valid = np.hstack((observations[0].valid_mask[:th, :tw], observations[1].valid_mask[:th, :tw]))
+            bot_valid = np.hstack((observations[2].valid_mask[:th, :tw], observations[3].valid_mask[:th, :tw]))
+            m_valid = np.vstack((top_valid, bot_valid))
+
+    elif len(observations) >= 2:
         m_rgb = np.hstack((observations[0].rgb[:th, :tw], observations[1].rgb[:th, :tw]))
         m_nir = np.hstack((observations[0].nir[:th, :tw], observations[1].nir[:th, :tw])) if observations[0].nir is not None and observations[1].nir is not None else None
         m_red = np.hstack((observations[0].red[:th, :tw], observations[1].red[:th, :tw])) if observations[0].red is not None and observations[1].red is not None else None
