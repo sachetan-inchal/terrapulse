@@ -49,20 +49,26 @@ def render_tab_stac_mosaic():
     # 1. Location Search Strip
     st.markdown("### 📍 Location Geocoding & Region of Interest (AOI)")
     
-    col_search, col_presets = st.columns([2, 1.5])
+    col_search, col_presets = st.columns([2, 1.2])
     
     with col_search:
-        current_query = st.session_state.get("stac_mosaic_query", "Bengaluru, Karnataka, India")
-        typed_query = st.text_input(
-            "Enter ANY City, Region, or Address (e.g. Cairo, Tokyo, Paris, Bengaluru, Dubai):",
-            value=current_query,
-            key="stac_typed_input"
-        )
-        if typed_query != current_query:
-            st.session_state["stac_mosaic_query"] = typed_query
+        with st.form(key="stac_loc_form"):
+            c_inp, c_sub = st.columns([3, 1.2])
+            with c_inp:
+                current_query = st.session_state.get("stac_mosaic_query", "Bengaluru, Karnataka, India")
+                typed_query = st.text_input(
+                    "Type ANY City, Region, or Coordinates:",
+                    value=current_query,
+                    placeholder="e.g. Cairo, Tokyo, Paris, Bengaluru, Dubai..."
+                )
+            with c_sub:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                loc_submitted = st.form_submit_button("🔍 Geocode", use_container_width=True)
+            if loc_submitted:
+                st.session_state["stac_mosaic_query"] = typed_query
 
     with col_presets:
-        st.write("Quick Presets:")
+        st.write("Popular Study Regions:")
         preset_cols = st.columns(4)
         for idx, (lbl, full_val) in enumerate(list(DEFAULT_PRESETS.items())[:4]):
             with preset_cols[idx]:

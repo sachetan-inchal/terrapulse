@@ -220,32 +220,51 @@ def render_tab_earthwatch():
     if source_option == "🌍 Live Sentinel-2 Satellite Stream (Type ANY Location)":
         st.markdown("### 🔍 Live Planetary Geocoder & STAC Ingestion Strip")
         
-        col_q, col_p = st.columns([2, 1.2])
-        with col_q:
-            default_query = st.session_state.get("ew_location_query", "Bengaluru, Karnataka, India")
-            typed_loc = st.text_input(
-                "Type ANY City, Region, or Coordinates to Stream Real Sentinel-2 Tiles:",
-                value=default_query,
-                key="ew_typed_loc"
-            )
-            if typed_loc != default_query:
-                st.session_state["ew_location_query"] = typed_loc
+        # 1. Quick Presets Strip
+        st.write("Popular Study Regions:")
+        presets = ["Bengaluru", "Cairo", "Tokyo", "Paris", "Dubai", "Swiss Alps"]
+        p_cols = st.columns(len(presets))
+        for idx, p_name in enumerate(presets):
+            with p_cols[idx]:
+                if st.button(p_name, key=f"btn_ew_preset_{p_name}"):
+                    st.session_state["ew_location_query"] = p_name
+                    st.session_state["ew_trigger_fetch"] = True
+                    st.rerun()
 
-        with col_p:
-            st.write("Popular Study Regions:")
-            presets = ["Bengaluru", "Cairo", "Tokyo", "Paris", "Dubai"]
-            p_cols = st.columns(len(presets))
-            for idx, p_name in enumerate(presets):
-                with p_cols[idx]:
-                    if st.button(p_name, key=f"btn_ew_preset_{p_name}"):
-                        st.session_state["ew_location_query"] = p_name
-                        st.rerun()
+        # 2. Free-Form Typing Form (Ensures fluid, uninterrupted typing!)
+        with st.form(key="ew_location_form"):
+            col_q, col_cloud, col_btn = st.columns([2.5, 1.2, 1.3])
+            with col_q:
+                current_query = st.session_state.get("ew_location_query", "Bengaluru, Karnataka, India")
+                typed_loc = st.text_input(
+                    "Type ANY City, Region, or Coordinates:",
+                    value=current_query,
+                    placeholder="e.g. Cairo, Tokyo, Paris, Bengaluru, Dubai, San Francisco..."
+                )
+            with col_cloud:
+                max_cloud = st.slider("Max Cloud (%)", min_value=5.0, max_value=50.0, value=20.0, step=5.0)
+            with col_btn:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                fetch_pair_btn = st.form_submit_button("🛰️ Stream Sentinel-2", use_container_width=True)
 
-        # Geocode the typed query
-        current_query = st.session_state.get("ew_location_query", "Bengaluru, Karnataka, India")
-        geocoded = geocode_user_location(current_query)
+        should_fetch = fetch_pair_btn or st.session_state.pop("ew_trigger_fetch", False)
 
-        # Telemetry info
+        if should_fetch:
+            st.session_state["ew_location_query"] = typed_loc
+            with st.spinner(f"Geocoding '{typed_loc}' & streaming live Sentinel-2 tiles from Microsoft Planetary Computer..."):
+                geocoded = geocode_user_location(typed_loc)
+                st.session_state["ew_geocoded"] = geocoded
+                pair_result = fetch_real_sentinel2_pair(geocoded["bbox"], max_cloud=max_cloud)
+                if pair_result[0] and pair_result[1]:
+                    st.session_state["ew_pair_data"] = pair_result
+                    st.success(f"✅ Successfully streamed real multi-temporal Sentinel-2 observations for {geocoded['name']}!")
+                else:
+                    st.error(f"No cloud-free Sentinel-2 scenes found for '{typed_loc}'. Try increasing the cloud threshold.")
+
+        if "ew_geocoded" not in st.session_state:
+            st.session_state["ew_geocoded"] = geocode_user_location(st.session_state.get("ew_location_query", "Bengaluru, Karnataka, India"))
+
+        geocoded = st.session_state["ew_geocoded"]
         b = geocoded["bbox"]
         st.markdown(
             f"""
@@ -259,25 +278,11 @@ def render_tab_earthwatch():
             unsafe_allow_html=True
         )
 
-        col_btn, col_cloud = st.columns([1.5, 1.5])
-        with col_cloud:
-            max_cloud = st.slider("Maximum Cloud Cover Allowance (%)", min_value=5.0, max_value=50.0, value=20.0, step=5.0, key="ew_cloud_slider")
-
-        with col_btn:
-            fetch_pair_btn = st.button("🛰️ Stream Live Sentinel-2 Multi-Temporal Pair", key="btn_fetch_ew_pair")
-
-        # Check if already fetched in session state for this location
-        cache_key = f"{geocoded['id']}_{max_cloud}"
-        if fetch_pair_btn or ("ew_pair_data" not in st.session_state or st.session_state.get("ew_pair_key") != cache_key):
-            if fetch_pair_btn or "ew_pair_data" not in st.session_state:
-                with st.spinner(f"Connecting to Microsoft Planetary Computer STAC for '{geocoded['name']}'..."):
-                    pair_result = fetch_real_sentinel2_pair(geocoded["bbox"], max_cloud=max_cloud)
-                    if pair_result[0] and pair_result[1]:
-                        st.session_state["ew_pair_data"] = pair_result
-                        st.session_state["ew_pair_key"] = cache_key
-                        st.success(f"✅ Successfully streamed real multi-temporal Sentinel-2 observations for {geocoded['name']}!")
-                    else:
-                        st.error("Failed to retrieve cloud-free Sentinel-2 pairs for this bounding box. Try increasing the cloud threshold.")
+        if "ew_pair_data" not in st.session_state:
+            with st.spinner("Streaming baseline Sentinel-2 observation pair for Bengaluru..."):
+                pair_result = fetch_real_sentinel2_pair(geocoded["bbox"], max_cloud=20.0)
+                if pair_result[0] and pair_result[1]:
+                    st.session_state["ew_pair_data"] = pair_result
 
         if "ew_pair_data" in st.session_state:
             (h_tuple, r_tuple) = st.session_state["ew_pair_data"]

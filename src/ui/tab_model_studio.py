@@ -114,9 +114,15 @@ def render_tab_model_studio():
 
             elif "DeepLabV3+" in model_selected:
                 # Multi-scale ASPP feature representation
-                from scipy.ndimage import gaussian_filter
-                blur1 = gaussian_filter(img_arr.mean(axis=2), sigma=2.0)
-                blur2 = gaussian_filter(img_arr.mean(axis=2), sigma=6.0)
+                try:
+                    from scipy.ndimage import gaussian_filter
+                    blur1 = gaussian_filter(img_arr.mean(axis=2), sigma=2.0)
+                    blur2 = gaussian_filter(img_arr.mean(axis=2), sigma=6.0)
+                except ImportError:
+                    import cv2
+                    gray = img_arr.mean(axis=2).astype(np.float32)
+                    blur1 = cv2.GaussianBlur(gray, (9, 9), 2.0)
+                    blur2 = cv2.GaussianBlur(gray, (25, 25), 6.0)
                 act_map = np.abs(blur1 - blur2)
                 act_map = (act_map - act_map.min()) / (act_map.max() - act_map.min() + 1e-6)
                 cmap_name = "inferno"
