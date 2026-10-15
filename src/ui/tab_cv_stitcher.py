@@ -1,4 +1,4 @@
-"""Analytical Computer Vision & Homography Stitcher Component.
+r"""Analytical Computer Vision & Homography Stitcher Component.
 
 Integrates classical feature-based stitching from 'gemini-code.py' / 'extras/cv_stitcher.py':
 - SIFT (Scale-Invariant Feature Transform) keypoint extraction
@@ -31,7 +31,7 @@ def render_tab_cv_stitcher():
     )
 
     st.markdown(
-        """
+        r"""
         Classical geometric computer vision pipeline. Detects scale-invariant visual keypoints, matches visual feature descriptors
         across overlapping adjacent satellite chips, rejects outlier correspondences via RANSAC, and calculates the 3×3 projective
         homography matrix $\mathbf{H}$ to warp and stitch tiles into an aligned scene.
