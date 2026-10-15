@@ -564,7 +564,7 @@ def render_tab_earth_explorer():
             # Legend
             labels = ["Water (Blue)", "Forest (Dark Green)", "Crops/Grass (Lime)", "Built-up (Red)", "Bare Soil (Ochre)"]
             patches = [plt.plot([], [], marker="s", color=cmap_lc(i), ls="", label=labels[i])[0] for i in range(5)]
-            ax.legend(handles=patches, loc="lower right", facecolor="#0f172a", edgecolor="rgba(255,255,255,0.1)", labelcolor="#f1f5f9", fontsize=8)
+            ax.legend(handles=patches, loc="lower right", facecolor="#0f172a", edgecolor="#334155", labelcolor="#f1f5f9", fontsize=8)
             plt.tight_layout()
             st.pyplot(fig)
             plt.close(fig)
