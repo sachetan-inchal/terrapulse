@@ -57,22 +57,56 @@ from src.ui.workspace_advanced import render_workspace_advanced
 from src.ui.tab_earthwatch import get_torch_device
 
 
-def compute_workflow_progress() -> int:
-    """Calculates current workflow progress step (1 to 6) based on shared state."""
-    if st.session_state.get(AppStateManager.KEY_COMPARISON_RESULT) is not None:
-        return 5
-    if st.session_state.get(AppStateManager.KEY_ENV_LAYERS) is not None:
-        return 4
-    if st.session_state.get(AppStateManager.KEY_PRIMARY_MOSAIC) is not None:
-        return 3
-    if st.session_state.get(AppStateManager.KEY_DISCOVERED_SCENES):
-        return 2
-    return 1
+def compute_workflow_step_statuses():
+    """Calculates live status and contextual subtitle for each of the 6 workflow steps."""
+    geo = AppStateManager.get_geocoded()
+    has_loc = bool(geo and geo.get("name"))
+
+    scenes = st.session_state.get(AppStateManager.KEY_DISCOVERED_SCENES)
+    has_scenes = bool(scenes)
+
+    mosaic = st.session_state.get(AppStateManager.KEY_PRIMARY_MOSAIC)
+    has_mosaic = bool(mosaic)
+
+    layers = st.session_state.get(AppStateManager.KEY_ENV_LAYERS)
+    has_layers = bool(layers)
+
+    comp = st.session_state.get(AppStateManager.KEY_COMPARISON_RESULT)
+    has_comp = bool(comp)
+
+    statuses = {}
+    subtitles = {}
+
+    # Step 1: Location
+    statuses[1] = "completed" if has_loc else "pending"
+    subtitles[1] = f"{geo.get('name', 'Bengaluru')[:16]} ({geo.get('lat', 12.97):.2f}°N)"
+
+    # Step 2: Imagery
+    statuses[2] = "completed" if has_scenes else ("ready" if has_loc else "pending")
+    subtitles[2] = f"{len(scenes)} Scenes Discovered" if has_scenes else "Sentinel-2 Live Stream"
+
+    # Step 3: Map
+    statuses[3] = "completed" if has_mosaic else ("ready" if has_scenes else "pending")
+    subtitles[3] = "4-Quadrant Fused Mosaic" if has_mosaic else "Auto-Stitch Ready"
+
+    # Step 4: Environmental Layers
+    statuses[4] = "completed" if has_layers else ("ready" if has_mosaic else "pending")
+    subtitles[4] = "6 Layers Calibrated" if has_layers else "NDVI, NDWI, NDBI Ready"
+
+    # Step 5: Compare Dates
+    statuses[5] = "completed" if has_comp else ("ready" if (has_scenes and len(scenes) > 1) else "pending")
+    subtitles[5] = f"{comp['meta']['overlap_pct']}% Overlap Aligned" if has_comp else ("Multi-Epoch Available" if (has_scenes and len(scenes) > 1) else "Single Observation")
+
+    # Step 6: Investigate
+    statuses[6] = "ready" if has_layers else "pending"
+    subtitles[6] = "Multi-Agent Swarm Ready" if has_layers else "Awaiting Optical Data"
+
+    return statuses, subtitles
 
 
 def main():
-    # 1. Initialize centralized application state
-    AppStateManager.init_state()
+    # 1. Initialize centralized application state & prewarm default location
+    AppStateManager.prewarm_default_data()
 
     # 2. Apply aerospace dark theme
     apply_futuristic_theme()
@@ -80,9 +114,9 @@ def main():
     # 3. Top Mission Banner
     render_hero_banner()
 
-    # 4. Guided Workflow Step Indicator (1 to 6)
-    current_step = compute_workflow_progress()
-    render_workflow_step_indicator(active_step=current_step)
+    # 4. Guided Workflow Step Indicator (1 to 6) with live status badges
+    step_statuses, step_subtitles = compute_workflow_step_statuses()
+    render_workflow_step_indicator(step_statuses=step_statuses, step_subtitles=step_subtitles)
 
     # 5. Sidebar Telemetry & Single Source of Truth Provenance
     device = get_torch_device()

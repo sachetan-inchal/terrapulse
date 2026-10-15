@@ -101,6 +101,17 @@ class AppStateManager:
             st.session_state[cls.KEY_STATUS_MESSAGES] = []
 
     @classmethod
+    def prewarm_default_data(cls):
+        """Eagerly ensures scenes, mosaic, and layers are computed for smooth first render."""
+        cls.init_state()
+        if cls.KEY_DISCOVERED_SCENES not in st.session_state:
+            cls.ensure_discovered_scenes()
+        if cls.KEY_PRIMARY_MOSAIC not in st.session_state:
+            cls.ensure_primary_mosaic()
+        if cls.KEY_ENV_LAYERS not in st.session_state:
+            cls.ensure_environmental_layers()
+
+    @classmethod
     def _update_geocoded(cls, query: str):
         """Geocodes a query and computes target UTM and a 40km bounding box."""
         geo = geocode_user_location(query)

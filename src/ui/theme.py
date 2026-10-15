@@ -272,8 +272,12 @@ def render_telemetry_sidebar(device_name="CPU"):
     )
 
 
-def render_workflow_step_indicator(active_step: int = 1):
-    """Renders the guided 6-step progress indicator for TerraPulse v2.0 workflow."""
+def render_workflow_step_indicator(
+    step_statuses=None,
+    step_subtitles=None,
+    active_step: int = 1
+):
+    """Renders the guided 6-step progress indicator for TerraPulse v2.0 workflow with live status badges."""
     steps = [
         (1, "1. Choose Location", "📍"),
         (2, "2. Select Imagery", "🛰️"),
@@ -285,32 +289,52 @@ def render_workflow_step_indicator(active_step: int = 1):
 
     items_html = []
     for step_num, step_title, step_icon in steps:
-        if step_num < active_step:
-            # Completed
-            color = "#34d399"
-            bg = "rgba(16, 185, 129, 0.12)"
-            border = "rgba(16, 185, 129, 0.4)"
-            status_dot = "✓"
-        elif step_num == active_step:
-            # Active
-            color = "#00f0ff"
-            bg = "rgba(0, 240, 255, 0.16)"
-            border = "rgba(0, 240, 255, 0.6)"
-            status_dot = "●"
+        # Determine step status
+        if step_statuses and step_num in step_statuses:
+            status = step_statuses[step_num]
         else:
-            # Upcoming
+            if step_num < active_step:
+                status = "completed"
+            elif step_num == active_step:
+                status = "active"
+            else:
+                status = "pending"
+
+        sub = (step_subtitles.get(step_num, "") if step_subtitles else "")
+
+        if status == "completed":
+            color = "#34d399"
+            bg = "rgba(16, 185, 129, 0.14)"
+            border = "rgba(16, 185, 129, 0.5)"
+            badge_html = "<span style='background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>✓ READY</span>"
+        elif status == "active":
+            color = "#00f0ff"
+            bg = "rgba(0, 240, 255, 0.18)"
+            border = "1px solid #00f0ff; box-shadow: 0 0 12px rgba(0, 240, 255, 0.35)"
+            badge_html = "<span style='background: rgba(0, 240, 255, 0.25); color: #00f0ff; border: 1px solid #00f0ff; padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>● ACTIVE</span>"
+        elif status == "ready":
+            color = "#fbbf24"
+            bg = "rgba(251, 191, 36, 0.10)"
+            border = "rgba(251, 191, 36, 0.4)"
+            badge_html = "<span style='background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>⏳ READY</span>"
+        else:
             color = "#64748b"
             bg = "rgba(15, 23, 42, 0.5)"
             border = "rgba(255, 255, 255, 0.08)"
-            status_dot = "○"
+            badge_html = "<span style='background: rgba(255, 255, 255, 0.05); color: #64748b; border: 1px solid rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem;'>○ PENDING</span>"
+
+        sub_html = f"<div style='font-size: 0.60rem; color: #94a3b8; font-family: sans-serif; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{sub}</div>" if sub else ""
 
         items_html.append(
             f"""
-            <div style="flex: 1; min-width: 140px; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 6px 10px; margin: 2px;">
-                <div style="font-size: 0.68rem; color: {color}; font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-                    <span>{step_icon} {step_title}</span>
-                    <span style="font-size: 0.75rem;">{status_dot}</span>
+            <div style="flex: 1; min-width: 145px; background: {bg}; border: {border}; border-radius: 8px; padding: 7px 10px; margin: 2px; transition: all 0.2s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.70rem; color: {color}; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
+                        {step_icon} {step_title}
+                    </span>
+                    {badge_html}
                 </div>
+                {sub_html}
             </div>
             """
         )
@@ -323,4 +347,5 @@ def render_workflow_step_indicator(active_step: int = 1):
         """,
         unsafe_allow_html=True
     )
+
 
