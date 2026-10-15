@@ -1,40 +1,26 @@
 """Sentinel-2 Cloud STAC 2x2 Grid Stitcher Component.
 
-Preserves and elevates the flagship capability from the 'main' branch:
 Live streaming of Sentinel-2 L2A Cloud-Optimized GeoTIFFs (COGs) from Microsoft
-Planetary Computer, cross-UTM reprojection, on-the-fly decimation, and 2x2 raster mosaicking.
+Planetary Computer STAC, dynamic geocoding of any typed location, cross-UTM reprojection,
+on-the-fly decimation, and 2x2 raster mosaicking.
 """
 
 import os
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
-LOCATIONS = {
-    "Swiss Alps (Snow & Mountains)": {
-        "bbox": [7.0, 45.5, 8.0, 46.2], 
-        "target_crs": "EPSG:32632", 
-        "stretch": 2000.0,
-        "desc": "High-altitude snow pack, rugged granitic peaks, and alpine glacier dynamics."
-    },
-    "Grand Canyon, USA (Desert Canyons)": {
-        "bbox": [-112.5, 35.8, -111.8, 36.4], 
-        "target_crs": "EPSG:32612", 
-        "stretch": 2500.0,
-        "desc": "Spectacular stratigraphy, arid canyon topography, and the Colorado River channel."
-    },
-    "Nile Delta, Egypt (Green vs Desert)": {
-        "bbox": [30.5, 30.5, 31.5, 31.5], 
-        "target_crs": "EPSG:32636", 
-        "stretch": 2000.0,
-        "desc": "Sharp boundary between lush agricultural irrigation and hyper-arid Saharan sand dunes."
-    },
-    "Tokyo Grid, Japan (Urban & Coast)": {
-        "bbox": [139.5, 35.5, 140.0, 35.8], 
-        "target_crs": "EPSG:32654", 
-        "stretch": 2200.0,
-        "desc": "Dense megalopolis coastal grid, artificial islands, ports, and Pacific bay interface."
-    }
+from src.data.sentinel_service import geocode_user_location
+
+DEFAULT_PRESETS = {
+    "Swiss Alps": "Swiss Alps (Snow & Mountains)",
+    "Bengaluru": "Bengaluru, Karnataka, India",
+    "Grand Canyon": "Grand Canyon, Arizona, USA",
+    "Nile Delta": "Nile Delta & Cairo, Egypt",
+    "Tokyo Bay": "Tokyo Bay Megalopolis, Japan",
+    "Paris": "Paris, Île-de-France, France",
+    "Dubai": "Dubai, United Arab Emirates"
 }
 
 def render_tab_stac_mosaic():
@@ -44,7 +30,7 @@ def render_tab_stac_mosaic():
             <div class="section-title">🌐 Planetary STAC 2×2 Mosaic Engine (Sentinel-2 L2A)</div>
             <div>
                 <span class="tech-badge badge-cyan">Planetary Computer STAC</span>
-                <span class="tech-badge badge-emerald">COG Window Streaming</span>
+                <span class="tech-badge badge-emerald">Real Sentinel-2 L2A COGs</span>
                 <span class="tech-badge badge-purple">Cross-UTM Warping</span>
             </div>
         </div>
@@ -54,42 +40,78 @@ def render_tab_stac_mosaic():
 
     st.markdown(
         """
-        Stream multi-spectral Sentinel-2 satellite data directly from public cloud storage without downloading entire multi-gigabyte scenes.
-        Applies geodetic reprojection across UTM zone boundaries and fuses overlapping tiles into an aligned 2×2 continuous mosaic.
+        Convert any typed location into verified coordinates and stream multi-spectral Sentinel-2 satellite data 
+        directly from Microsoft Planetary Computer cloud storage. Applies geodetic reprojection across UTM zone boundaries 
+        and fuses overlapping tiles into an aligned 2×2 continuous mosaic.
         """
     )
 
+    # 1. Location Search Strip
+    st.markdown("### 📍 Location Geocoding & Region of Interest (AOI)")
+    
+    col_search, col_presets = st.columns([2, 1.5])
+    
+    with col_search:
+        current_query = st.session_state.get("stac_mosaic_query", "Bengaluru, Karnataka, India")
+        typed_query = st.text_input(
+            "Enter ANY City, Region, or Address (e.g. Cairo, Tokyo, Paris, Bengaluru, Dubai):",
+            value=current_query,
+            key="stac_typed_input"
+        )
+        if typed_query != current_query:
+            st.session_state["stac_mosaic_query"] = typed_query
+
+    with col_presets:
+        st.write("Quick Presets:")
+        preset_cols = st.columns(4)
+        for idx, (lbl, full_val) in enumerate(list(DEFAULT_PRESETS.items())[:4]):
+            with preset_cols[idx]:
+                if st.button(lbl, key=f"btn_stac_preset_{lbl}"):
+                    st.session_state["stac_mosaic_query"] = full_val
+                    st.rerun()
+
+    # 2. Geocode the query dynamically
+    active_query = st.session_state.get("stac_mosaic_query", "Bengaluru, Karnataka, India")
+    geocoded = geocode_user_location(active_query)
+
+    # 3. Settings & Telemetry Strip
     col_ctrl, col_info = st.columns([1.2, 1.8])
 
     with col_ctrl:
-        selected_loc = st.selectbox("Select Planetary Study Region", list(LOCATIONS.keys()), key="stac_loc_select")
-        config = LOCATIONS[selected_loc]
-        st.caption(f"ℹ️ {config['desc']}")
+        st.markdown(f"**Target Location:** `{geocoded['name']}`")
         
         c_crs, c_stretch = st.columns(2)
         with c_crs:
-            st.text_input("Target Geodetic CRS", value=config["target_crs"], disabled=True)
+            st.text_input("Calculated UTM CRS", value=geocoded["target_utm"], disabled=True)
         with c_stretch:
-            stretch_val = st.number_input("Reflectance Stretch (DN)", min_value=1000.0, max_value=5000.0, value=config["stretch"], step=200.0)
+            stretch_val = st.number_input("Reflectance Stretch (DN)", min_value=1000.0, max_value=5000.0, value=2200.0, step=200.0)
 
-        decimation_scale = st.slider("Overview Decimation Factor", min_value=5, max_value=25, value=15, help="Sub-samples high-res 10m bands for rapid preview over broadband links.")
+        c_dec, c_cloud = st.columns(2)
+        with c_dec:
+            decimation_scale = st.slider("Decimation Factor", min_value=5, max_value=25, value=12, help="Sub-samples high-res 10m bands for rapid preview over broadband links.")
+        with c_cloud:
+            max_cloud_cover = st.slider("Max Cloud Cover (%)", min_value=5.0, max_value=50.0, value=15.0, step=5.0)
 
     with col_info:
+        b = geocoded["bbox"]
         st.markdown(
             f"""
             <div class="telemetry-card" style="margin-top: 10px;">
                 <div style="font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
-                    Target Bounding Box Coordinates
+                    Target Bounding Box Coordinates (OpenStreetMap WGS-84)
                 </div>
                 <div style="font-family: 'JetBrains Mono', monospace; color: #38bdf8; font-size: 0.95rem; margin-top: 4px;">
-                    [{config['bbox'][0]:.2f}° W, {config['bbox'][1]:.2f}° S, {config['bbox'][2]:.2f}° E, {config['bbox'][3]:.2f}° N]
+                    [{b[0]:.4f}° E, {b[1]:.4f}° N, {b[2]:.4f}° E, {b[3]:.4f}° N]
                 </div>
-                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
                     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; font-size: 0.75rem;">
                         <span style="color: #64748b;">Source Collection:</span> <strong style="color: #f1f5f9;">sentinel-2-l2a</strong>
                     </div>
                     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; font-size: 0.75rem;">
-                        <span style="color: #64748b;">Max Cloud Cover:</span> <strong style="color: #34d399;">&lt; 5.0%</strong>
+                        <span style="color: #64748b;">Sensor:</span> <strong style="color: #38bdf8;">MSI (Multi-Spectral 10m)</strong>
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; font-size: 0.75rem;">
+                        <span style="color: #64748b;">Target Projection:</span> <strong style="color: #34d399;">{geocoded['target_utm']}</strong>
                     </div>
                 </div>
             </div>
@@ -97,7 +119,7 @@ def render_tab_stac_mosaic():
             unsafe_allow_html=True,
         )
 
-    fetch_button = st.button("🚀 Fetch, Reproject & Stitch Mosaic", key="btn_run_stac")
+    fetch_button = st.button("🚀 Fetch, Reproject & Stitch Real Sentinel-2 Mosaic", key="btn_run_stac")
 
     if fetch_button:
         try:
@@ -116,7 +138,7 @@ def render_tab_stac_mosaic():
         tile_files = []
         src_files = []
 
-        with st.spinner(f"Querying Microsoft Planetary Computer STAC Catalog for {selected_loc}..."):
+        with st.spinner(f"Querying Microsoft Planetary Computer STAC for '{geocoded['name']}'..."):
             try:
                 catalog = pystac_client.Client.open(
                     "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -125,18 +147,18 @@ def render_tab_stac_mosaic():
 
                 search = catalog.search(
                     collections=["sentinel-2-l2a"],
-                    bbox=config["bbox"],
-                    datetime="2025-06-01/2026-03-01",
-                    query={"eo:cloud_cover": {"lt": 10.0}},
+                    bbox=geocoded["bbox"],
+                    datetime="2023-01-01/..",
+                    query={"eo:cloud_cover": {"lt": max_cloud_cover}},
                     max_items=4
                 )
 
                 items = list(search.items())
                 if not items:
-                    st.warning("No scenes with < 10% cloud cover found in recent window. Expanding temporal search...")
+                    st.warning(f"No scenes with < {max_cloud_cover}% cloud cover found in recent window. Expanding temporal search...")
                     search = catalog.search(
                         collections=["sentinel-2-l2a"],
-                        bbox=config["bbox"],
+                        bbox=geocoded["bbox"],
                         max_items=4
                     )
                     items = list(search.items())
@@ -145,10 +167,10 @@ def render_tab_stac_mosaic():
                     st.error("No imagery items returned for this bounding box.")
                     return
 
-                st.success(f"Discovered {len(items)} intersecting spatial tiles. Streaming RGB bands...")
+                st.success(f"Discovered {len(items)} intersecting Sentinel-2 spatial tiles for {geocoded['name']}. Streaming RGB bands...")
 
                 loaded_rgb_tiles = []
-                target_crs = config["target_crs"]
+                target_crs = geocoded["target_utm"]
 
                 progress_bar = st.progress(0.0)
 
@@ -173,7 +195,9 @@ def render_tab_stac_mosaic():
                     # Build RGB preview
                     tile_rgb = np.dstack((r.astype(np.float32), g.astype(np.float32), b.astype(np.float32)))
                     tile_rgb = np.clip(tile_rgb / stretch_val * 255.0, 0, 255).astype(np.uint8)
-                    loaded_rgb_tiles.append((item.id, tile_rgb))
+                    date_str = item.datetime.strftime("%Y-%m-%d") if item.datetime else "Unknown"
+                    cloud_val = item.properties.get("eo:cloud_cover", 0.0)
+                    loaded_rgb_tiles.append((item.id, tile_rgb, date_str, cloud_val))
 
                     # Reproject to shared UTM zone
                     dst_transform, dst_width, dst_height = calculate_default_transform(
@@ -215,29 +239,35 @@ def render_tab_stac_mosaic():
                 mosaic_rgb = np.dstack((rm, gm, bm))
                 mosaic_rgb = np.clip(mosaic_rgb / stretch_val * 255.0, 0, 255).astype(np.uint8)
 
+                # Cache in session state
+                st.session_state["latest_sentinel_mosaic"] = mosaic_rgb
+                st.session_state["latest_sentinel_tiles"] = loaded_rgb_tiles
+
                 # Render UI Figure using dark theme
                 fig = plt.figure(figsize=(16, 8))
                 fig.patch.set_facecolor('#070b14')
                 gs = fig.add_gridspec(2, 4, width_ratios=[1, 1, 1.4, 1.4])
 
                 tile_coords = [(0, 0), (0, 1), (1, 0), (1, 1)]
-                for idx, (tid, t_img) in enumerate(loaded_rgb_tiles):
+                for idx, (tid, t_img, dt_str, c_val) in enumerate(loaded_rgb_tiles):
                     if idx < len(tile_coords):
                         tr, tc = tile_coords[idx]
                         ax = fig.add_subplot(gs[tr, tc])
                         ax.imshow(t_img)
-                        ax.set_title(f"Source Scene #{idx+1}", color="#38bdf8", fontsize=9, fontfamily='monospace')
+                        ax.set_title(f"Scene #{idx+1} ({dt_str}) Cloud: {c_val:.1f}%", color="#38bdf8", fontsize=8, fontfamily='monospace')
                         ax.axis('off')
                         ax.set_facecolor('#070b14')
 
                 ax_mosaic = fig.add_subplot(gs[:, 2:])
                 ax_mosaic.imshow(mosaic_rgb)
-                ax_mosaic.set_title(f"Seamless 2×2 Reprojected Mosaic ({target_crs})", color="#00f0ff", fontsize=12, pad=10, fontfamily='monospace')
+                ax_mosaic.set_title(f"Seamless 2×2 Reprojected Mosaic ({target_crs})\n{geocoded['name']}", color="#00f0ff", fontsize=11, pad=10, fontfamily='monospace')
                 ax_mosaic.axis('off')
                 ax_mosaic.set_facecolor('#070b14')
 
                 plt.tight_layout()
                 st.pyplot(fig)
+
+                st.success("✅ Real Sentinel-2 observation successfully streamed, reprojected, and fused into mosaic!")
 
             except Exception as e:
                 st.error(f"Error during STAC streaming or geodetic warping: {e}")
