@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.tif
+*.tiff
+.env
+.pytest_cache/
+radiometric_outputs/
+test_radiometric_output/
+*.log

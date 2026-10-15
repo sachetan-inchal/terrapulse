@@ -8,6 +8,11 @@ import gradio as gr
 import segmentation_models_pytorch as smp
 import timm
 
+from terrapulse.multispectral import RadiometricProcessor
+from terrapulse.change_detection import BiTemporalChangeDetector
+from terrapulse.osint_engine import GeospatialOSINTEngine, EcologicalThreatLevel
+from terrapulse.robust_matcher import RobustGeospatialMatcher
+
 # Ensure standard streams handle Unicode gracefully on Windows
 if sys.platform == "win32":
     try:
@@ -168,13 +173,77 @@ def run_prithvi(image):
     return visual_img, status_msg
 
 
+def run_change_detection_demo(img1, img2, threshold_strategy):
+    if img1 is None or img2 is None:
+        return None, "Please upload or select both Observation t1 and Observation t2."
+    np1 = np.array(img1.convert("RGB"))
+    np2 = np.array(img2.convert("RGB"))
+    result = BiTemporalChangeDetector.detect_spectral_change(
+        np1, np2, threshold_mode="otsu" if "Otsu" in threshold_strategy else "sigma"
+    )
+    dashboard = BiTemporalChangeDetector.render_change_dashboard(np1, np2, result)
+    dash_pil = Image.fromarray(dashboard)
+    table_md = result.transition_matrix.to_markdown_table() if result.transition_matrix else "No transition data."
+    metrics_summary = (
+        f"### 📈 Change Summary Metrics\n"
+        f"- **Changed Surface Area Ratio**: `{result.changed_pixel_ratio:.2f}%`\n"
+        f"- **Mean Spectral Delta Magnitude**: `{result.mean_change_intensity:.2f}`\n"
+        f"- **Threshold Cutoff Applied**: `{result.otsu_threshold:.1f}`\n\n"
+        f"### 🔄 Land-Cover Transition Matrix\n"
+        f"{table_md}"
+    )
+    return dash_pil, metrics_summary
+
+
+def run_osint_demo(region, timeframe, total_area, deforest, urban, water, reveg):
+    report = GeospatialOSINTEngine.analyze_change_intelligence(
+        region_query=region,
+        bbox=[77.5, 12.8, 77.8, 13.1],
+        timeframe=timeframe,
+        total_area_ha=float(total_area),
+        deforestation_ha=float(deforest),
+        urban_sprawl_ha=float(urban),
+        water_loss_ha=float(water),
+        revegetation_ha=float(reveg),
+    )
+    badge = f"### Status: {report.threat_level.value} (EVI: {report.ecological_vulnerability_index:.1f}/100)"
+    return badge, report.to_markdown()
+
+
+def run_multispectral_demo(img):
+    if img is None:
+        return None, None, None, "Please upload an input chip."
+    np_img = np.array(img.convert("RGB"))
+    r = np_img[..., 0]
+    g = np_img[..., 1]
+    b = np_img[..., 2]
+    # Synthetic / Proxy NIR from green & red channels for standard optical image chips
+    nir = np.clip(g.astype(np.float32) * 1.35 + r.astype(np.float32) * 0.2, 0, 255).astype(np.uint8)
+    bands = {"B02": b, "B03": g, "B04": r, "B08": nir}
+    indices = RadiometricProcessor.process_all_indices(bands)
+
+    ndvi_col = RadiometricProcessor.colorize_index(indices.ndvi, "ndvi")
+    ndwi_col = RadiometricProcessor.colorize_index(indices.ndwi, "ndwi")
+    cir_comp = RadiometricProcessor.generate_false_color_composite(bands, "cir")
+
+    stats_text = (
+        f"**NDVI Mean**: {indices.statistics['ndvi_mean']:.3f}\n\n"
+        f"**Dense Canopy**: {indices.statistics['dense_vegetation_pct']}%\n\n"
+        f"**Moderate Vegetation**: {indices.statistics['moderate_vegetation_pct']}%\n\n"
+        f"**Water Bodies**: {indices.statistics['water_body_pct']}%\n\n"
+        f"**Built-up / Urban**: {indices.statistics['built_up_urban_pct']}%\n\n"
+        f"**Bare Soil**: {indices.statistics['bare_soil_pct']}%"
+    )
+    return Image.fromarray(ndvi_col), Image.fromarray(ndwi_col), Image.fromarray(cir_comp), stats_text
+
+
 # ==========================================
 # 3. WEB APP UI (GRADIO)
 # ==========================================
 
 with gr.Blocks() as demo:
-    gr.Markdown("# 🛰️ Geospatial Deep Learning Studio (RTX 3050 Optimized)")
-    gr.Markdown("Easily test semantic segmentation & foundation models running locally on your hardware.")
+    gr.Markdown("# 🛰️ TerraPulse: Geospatial CV & Autonomous OSINT Studio")
+    gr.Markdown("Interactive multi-model computer vision, bi-temporal change detection, and ecological intelligence platform.")
     
     device_info = (
         "🚀 **Hardware Status**: NVIDIA GeForce RTX 3050 CUDA Acceleration Active"
@@ -218,5 +287,50 @@ with gr.Blocks() as demo:
             if SAMPLE_IMAGES:
                 gr.Examples(examples=SAMPLE_IMAGES, inputs=prithvi_input, label="Sample Chips")
 
+        # Tab 4: Bi-Temporal Change Detection
+        with gr.TabItem("4. Bi-Temporal Change Detection"):
+            gr.Markdown("### Multi-Temporal Satellite Difference & Land-Cover Transition Engine")
+            with gr.Row():
+                cd_t1 = gr.Image(type="pil", label="Observation Epoch t1 (Baseline)")
+                cd_t2 = gr.Image(type="pil", label="Observation Epoch t2 (Current)")
+            cd_mode = gr.Radio(choices=["Otsu (Adaptive Optimal)", "Statistical (k-sigma)"], value="Otsu (Adaptive Optimal)", label="Thresholding Strategy")
+            cd_btn = gr.Button("Execute Bi-Temporal Change Detection", variant="primary")
+            cd_dash = gr.Image(type="pil", label="4-Panel Change Verification Dashboard")
+            cd_stats = gr.Markdown()
+            cd_btn.click(run_change_detection_demo, inputs=[cd_t1, cd_t2, cd_mode], outputs=[cd_dash, cd_stats])
+            if len(SAMPLE_IMAGES) >= 2:
+                gr.Examples(examples=[[SAMPLE_IMAGES[0], SAMPLE_IMAGES[1]]], inputs=[cd_t1, cd_t2], label="Sample Bi-Temporal Pair")
+
+        # Tab 5: Autonomous OSINT Intelligence Dossier
+        with gr.TabItem("5. Autonomous OSINT Intelligence Dossier"):
+            gr.Markdown("### Tier 3 Autonomous OSINT Telemetry & Ecological Risk Forecaster")
+            with gr.Row():
+                osint_region = gr.Textbox(value="Bengaluru Urban Corridor, India", label="Target AOI / Study Region")
+                osint_time = gr.Textbox(value="2020-01-01 to 2025-01-01", label="Observation Window")
+                osint_area = gr.Number(value=350.0, label="Total Area Evaluated (ha)")
+            with gr.Row():
+                osint_deforest = gr.Slider(0.0, 100.0, value=22.4, label="Canopy / Deforestation Loss (ha)")
+                osint_urban = gr.Slider(0.0, 150.0, value=58.3, label="Urban / Impervious Sprawl (ha)")
+                osint_water = gr.Slider(0.0, 50.0, value=8.7, label="Hydrological Depletion (ha)")
+                osint_reveg = gr.Slider(0.0, 50.0, value=3.2, label="Revegetation Offset (ha)")
+            osint_btn = gr.Button("Generate Autonomous OSINT Briefing", variant="primary")
+            osint_badge = gr.Markdown()
+            osint_dossier = gr.Markdown()
+            osint_btn.click(run_osint_demo, inputs=[osint_region, osint_time, osint_area, osint_deforest, osint_urban, osint_water, osint_reveg], outputs=[osint_badge, osint_dossier])
+
+        # Tab 6: Multi-Spectral Radiometric Analytics
+        with gr.TabItem("6. Multi-Spectral Radiometrics"):
+            gr.Markdown("### Tier 2 Automated Radiometric Indices & Biomass Analysis")
+            ms_input = gr.Image(type="pil", label="Input Optical Chip")
+            ms_btn = gr.Button("Compute Radiometric Indices & Composites", variant="primary")
+            with gr.Row():
+                ms_ndvi = gr.Image(type="pil", label="NDVI (Canopy Vitality)")
+                ms_ndwi = gr.Image(type="pil", label="NDWI (Hydrology)")
+                ms_cir = gr.Image(type="pil", label="Color Infrared (CIR Composite)")
+            ms_summary = gr.Markdown()
+            ms_btn.click(run_multispectral_demo, inputs=ms_input, outputs=[ms_ndvi, ms_ndwi, ms_cir, ms_summary])
+            if SAMPLE_IMAGES:
+                gr.Examples(examples=SAMPLE_IMAGES, inputs=ms_input, label="Sample Chips")
+
 if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=7860, share=False, theme=gr.themes.Soft())
+    demo.launch(server_name="127.0.0.1", server_port=7860, share=False, theme=gr.themes.Soft())

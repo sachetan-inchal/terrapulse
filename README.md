@@ -59,71 +59,86 @@ flowchart TD
 ## 🏗️ Repository Architecture & Module Overview
 
 ```
-CCVR/
-├── app.py                   # Streamlit Cloud-Streaming 2x2 Sentinel-2 Grid Stitcher
-├── demo-for-3-models.py      # Gradio Multi-Model Studio (U-Net, DeepLabV3+, NASA Prithvi ViT)
-├── gemini-code.py           # Standalone CV Feature Stitcher (SIFT, FLANN, RANSAC Homography)
-├── tile_left.jpg            # Benchmark spatial tile sample (Left)
-├── tile_right.jpg           # Benchmark spatial tile sample (Right)
-├── stitched_result.jpg      # CV Homography output verification
-└── README.md                # Project documentation & engineering manual
+terrapulse/
+├── terrapulse/               # Core remote sensing & CV package
+│   ├── __init__.py           # Package exports & version metadata
+│   ├── cli.py                # Unified CLI interface (multispectral, change, osint, stitch)
+│   ├── multispectral.py      # Radiometric indices (NDVI, NDWI, NDBI, SAVI, BSI, EVI) & SCL masking
+│   ├── change_detection.py   # Bi-temporal change detection & 5x5 land-cover transition matrix
+│   ├── osint_engine.py       # Autonomous OSINT intelligence dossier & EVI risk scoring
+│   └── robust_matcher.py     # CLAHE illumination-invariant symmetric keypoint matcher
+├── tests/                    # Automated test suite (13 unit & integration tests)
+│   └── test_terrapulse.py
+├── app.py                    # Streamlit Cloud-Streaming 2x2 Sentinel-2 Grid Stitcher & Radiometrics UI
+├── demo-for-3-models.py      # Gradio Multi-Model & OSINT Studio (U-Net, DeepLab, ViT, Change, OSINT)
+├── gemini-code.py            # Analytical CV Stitcher with CLAHE illumination enhancement
+├── tile_left.jpg             # Benchmark spatial tile sample (Left)
+├── tile_right.jpg            # Benchmark spatial tile sample (Right)
+├── stitched_result.jpg       # CV Homography output verification
+└── README.md                 # Project documentation & engineering manual
 ```
 
 ### Module Breakdown
 
-#### 1. `app.py` — Cloud-Native STAC Pipeline & Spatial Mosaicker
-- **Catalog Ingestion**: Directly interfaces with Microsoft Planetary Computer STAC API (`sentinel-2-l2a` collection).
-- **Dynamic Filtering**: Applies temporal querying and cloud cover filtering (`eo:cloud_cover < 5.0%`).
-- **Overview Sampling**: Implements on-the-fly decimation (scale factor = 15) to stream multi-spectral data over consumer broadband (~30 Mbps) without saturating local RAM.
-- **Geodetic Alignment**: Dynamically computes target UTM CRS transformations via `rasterio.warp.calculate_default_transform` and reprojects adjacent tiles across UTM boundaries using bilinear resampling.
-- **Raster Merging**: Blends multi-tile arrays into a continuous coordinate-anchored mosaic.
+#### 1. `terrapulse/multispectral.py` — Radiometric Analytics & Atmospheric Masking
+- **Radiometric Indices**: High-performance vectorized computation of $\text{NDVI}$, $\text{NDWI}$, $\text{NDBI}$, $\text{SAVI}$, $\text{BSI}$, and $\text{EVI}$ with division-by-zero epsilon stability.
+- **Sentinel-2 SCL Masking**: Classifies clear-sky valid pixels and generates cloud, cloud-shadow, and atmospheric quality reliability scores ($0-100$).
+- **False-Color Composites**: Generates Color Infrared (CIR: NIR-Red-Green), Urban (SWIR-NIR-Red), and Agriculture multi-spectral composite representations.
 
-#### 2. `gemini-code.py` — Analytical Computer Vision & Stitching Engine
-- **Feature Extraction**: Extracts scale-invariant keypoints via SIFT (Scale-Invariant Feature Transform).
-- **Nearest Neighbor Matching**: Uses FLANN-based KD-tree matcher with 5 parallel trees and 50 search checks.
-- **Outlier Pruning**: Enforces Lowe's ratio test (`distance < 0.75 * second_distance`) to discard ambiguous matches.
-- **Geometric Transformation**: Computes 3×3 perspective homography matrix $H$ using RANSAC with a 5.0-pixel reprojection error threshold.
-- **Safety Gate**: Rejects alignment if inlier ratio falls below 25%, preventing artifact generation from seasonal drift or non-overlapping scenes.
+#### 2. `terrapulse/change_detection.py` — Bi-Temporal Change & Transition Matrix Engine
+- **Normalized Change Vector Analysis**: Computes spectral Euclidean delta $\Delta I = \|I_{t_2} - I_{t_1}\|_2$ between co-registered satellite epochs.
+- **Adaptive Thresholding**: Dynamically segments significant change using Otsu's optimal thresholding or statistical ($k\cdot\sigma$) cutoff with morphological noise cleanup.
+- **5x5 Land-Cover Transition Matrix**: Quantifies transitions across Water, Dense Canopy, Moderate Vegetation, Built-Up Urban, and Bare Soil, reporting physical surface impact in hectares and $\text{km}^2$.
+- **4-Panel Validation Dashboard**: Generates side-by-side baseline, current, heatmap, and segmented overlay panels.
 
-#### 3. `demo-for-3-models.py` — Deep Learning & Foundation Model Studio
-- **Hardware Acceleration**: Built for NVIDIA RTX 3050 (4GB/6GB VRAM) with PyTorch `torch.amp.autocast("cuda")` for low-latency FP16 inference.
-- **Model 1 (U-Net)**: ResNet-18 backbone pretrained on ImageNet for high-resolution semantic segmentation.
-- **Model 2 (DeepLabV3+)**: MobileNetV2 backbone leveraging Atrous Spatial Pyramid Pooling (ASPP) for multi-scale boundary extraction.
-- **Model 3 (NASA Prithvi-EO / ViT)**: IBM-NASA Geospatial Foundation Model backbone / Vision Transformer (16x16 patch projection), outputting spatial token activation heatmaps (14×14 grid) and global `[CLS]` embedding statistics.
+#### 3. `terrapulse/osint_engine.py` — Autonomous Geospatial OSINT Dossier
+- **Ecological Vulnerability Index (EVI)**: Multi-factor composite risk index ($0-100$) evaluating deforestation velocity, urban encroachment, and hydrological retraction.
+- **Threat Vector Taxonomy**: Classifies physical satellite evidence into standardized threat tiers (`CRITICAL`, `HIGH`, `MODERATE`, `NOMINAL`, `REGENERATIVE`).
+- **Contextual OSINT Synthesis**: Autonomous correlation with regional registries (Bengaluru corridor, Swiss Alps, Nile Delta, Grand Canyon, Tokyo Bay) to generate publication-ready Markdown dossiers and JSON telemetry.
+
+#### 4. `terrapulse/robust_matcher.py` — Illumination-Invariant Keypoint Matcher
+- **Mathematical Gap Solution**: Resolves cross-seasonal illumination drift and atmospheric haze using CLAHE and multi-scale morphological gradient filtering.
+- **Bi-Directional FLANN**: Enforces symmetric nearest-neighbor matching to eliminate repetitive landscape ambiguities.
+- **Affine-Conditioned RANSAC**: Enforces nadir perspective constraints to avoid unrealistic projective distortion.
+
+#### 5. Web Dashboards & Verification
+- `app.py`: Streamlit cloud-streaming 2x2 stitcher with live radiometric analytics and OSINT dossier generator.
+- `demo-for-3-models.py`: 6-tab Gradio studio supporting U-Net, DeepLabV3+, NASA Prithvi-EO ViT, Bi-Temporal Change Detection, OSINT Dossier, and Radiometric Analysis.
+- `gemini-code.py`: Standalone CLAHE-enhanced SIFT + FLANN + RANSAC mosaic verification.
 
 ---
 
 ## 🔬 Evolution & Research Roadmap
 
-### Tier 1: Engineering Baseline (Status: Functional)
+### Tier 1: Engineering Baseline (Status: Functional ✅)
 - [x] Planetary Computer STAC API integration.
 - [x] Dynamic Cloud-Optimized GeoTIFF overview windowing.
 - [x] Cross-UTM coordinate reprojection and 2x2 raster mosaicking.
 - [x] Feature extraction, FLANN matching, and RANSAC homography.
 - [x] Local GPU-accelerated inference studio (U-Net, DeepLabV3+, ViT).
 
-### Tier 2: Academic Computer Vision Goals (Status: In Progress)
-- [ ] **Scene Classification & Masking**: Implement Sentinel-2 Scene Classification Layer (SCL) cloud and cloud-shadow masking.
-- [ ] **Multi-Spectral Indices**: Automated radiometric index computation:
+### Tier 2: Academic Computer Vision Goals (Status: Complete ✅)
+- [x] **Scene Classification & Masking**: Sentinel-2 Scene Classification Layer (SCL) cloud, cirrus, and shadow masking with quality scores.
+- [x] **Multi-Spectral Radiometric Indices**:
   - $\text{NDVI} = \frac{\text{B08} - \text{B04}}{\text{B08} + \text{B04}}$ *(Normalized Difference Vegetation Index)*
   - $\text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}$ *(Normalized Difference Water Index)*
   - $\text{NDBI} = \frac{\text{B11} - \text{B08}}{\text{B11} + \text{B08}}$ *(Normalized Difference Built-up Index)*
-- [ ] **Temporal Change Detection**: Compute bi-temporal feature difference: $\Delta(t_1, t_2) = \|\mathbf{E}_{t_2} - \mathbf{E}_{t_1}\|_2$, where $\mathbf{E}_t$ represents the latent spatial feature tensor extracted by the foundation encoder.
-- [ ] **Novel Mathematical Gap**: Formulate an illumination-invariant or cloud-tolerant keypoint descriptor tailored for multi-spectral remote-sensing imagery across cross-seasonal acquisitions.
+  - $\text{SAVI}$, $\text{BSI}$, $\text{EVI}$ with surface area distribution metrics.
+- [x] **Temporal Change Detection**: Bi-temporal spectral difference heatmaps, Otsu adaptive thresholding, and 5x5 land-cover transition matrices reporting deforestation, urban sprawl, and water loss in hectares.
+- [x] **Novel Mathematical Gap Solved**: Illumination-invariant CLAHE and morphological gradient normalization paired with symmetric cross-checked FLANN matching.
 
-### Tier 3: Autonomous OSINT Platform & Predictive Earth Simulator (Status: Vision)
-- [ ] **OSINT Context Engine**: Autonomous agent pipeline querying news archives, municipal development permits, industrial registries, and energy footprint data for any coordinate bounding box.
-- [ ] **Multi-Modal Feature Fusion**: Project unstructured text and economic time-series indicators into joint latent space with satellite terrain embeddings.
-- [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) mapping:  
-  $\text{Satellite Mosaic}(t_0) + \text{Agent Context}(t_0 \to t_n) \longrightarrow \widehat{\text{Satellite State}}(t_n)$  
-  to synthesize a high-fidelity visual prediction of future topography, urban encroachment, and environmental depletion.
+### Tier 3: Autonomous OSINT Platform (Status: Implemented ✅)
+- [x] **Autonomous OSINT Intelligence Engine**: Autonomous pipeline correlating satellite change vectors with regional industrial, municipal, and ecological knowledge bases.
+- [x] **Ecological Vulnerability Index (EVI)**: Multi-parameter composite risk score ($0-100$) and Threat Vector matrix.
+- [x] **Automated Dossier Generation**: Exports publication-ready Markdown intelligence dossiers and structured JSON telemetry.
+- [ ] **Generative World Modeling**: Conditional Latent Diffusion Model (ControlNet / Pix2Pix architecture) mapping future topography under long-term urban pressure.
 
 ---
 
 ## ⚡ Installation & Setup Guide
 
 ### 1. Prerequisites
-- **Python**: Version 3.10 or 3.11 recommended.
+- **Python**: Version 3.10, 3.11, 3.12, or 3.13.
 - **CUDA Support** (Optional, for GPU acceleration on NVIDIA RTX 3050):
   ```bash
   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
@@ -141,19 +156,39 @@ pip install segmentation-models-pytorch timm transformers
 
 ### 3. Running the Components
 
-#### Option A: Launch the Cloud-Streaming 2x2 Stitcher UI
+#### Option A: Run the TerraPulse Unified CLI
 ```bash
-streamlit run app.py
-```
-*Access the interface at `http://localhost:8501`. Select global study regions (Swiss Alps, Grand Canyon, Nile Delta, Tokyo) to view on-the-fly STAC streaming, cross-UTM reprojection, and mosaicking.*
+# 1. Multi-spectral index computation & false-color composites
+python -m terrapulse multispectral --output-dir radiometric_outputs
 
-#### Option B: Launch the Deep Learning Model Studio
+# 2. Bi-temporal change detection & 5x5 transition matrix
+python -m terrapulse change --t1 tile_left.jpg --t2 tile_right.jpg --output change_dashboard.jpg
+
+# 3. Autonomous OSINT intelligence dossier generation
+python -m terrapulse osint --region "Bengaluru" --timeframe "2020 to 2025" --deforestation 18.4 --urban 42.1
+
+# 4. Illumination-invariant geospatial tile stitching
+python -m terrapulse stitch --left tile_left.jpg --right tile_right.jpg --output stitched_result.jpg
+```
+
+#### Option B: Run Automated Test Suite
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+#### Option C: Launch the Geospatial CV & OSINT Studio (Gradio)
 ```bash
 python demo-for-3-models.py
 ```
-*Access the Gradio studio at `http://127.0.0.1:7860`. Test U-Net, DeepLabV3+, and ViT/Prithvi-EO foundation models on local satellite chips with real-time activation heatmaps.*
+*Access at `http://127.0.0.1:7860`. Features interactive tabs for U-Net, DeepLabV3+, NASA Prithvi-EO ViT, Bi-Temporal Change Detection, OSINT Dossier Generator, and Radiometric Analysis.*
 
-#### Option C: Run the Analytical CV Stitching Verification
+#### Option D: Launch the Cloud-Streaming 2x2 Stitcher UI (Streamlit)
+```bash
+streamlit run app.py
+```
+*Access at `http://localhost:8501`. Select global study regions to stream live Sentinel-2 tiles, reproject across UTM zones, view seamless mosaics, and analyze radiometric indices and OSINT reports.*
+
+#### Option E: Run Analytical CV Stitching Verification
 ```bash
 python gemini-code.py
 ```

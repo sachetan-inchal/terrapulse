@@ -82,8 +82,10 @@ def robust_tile_stitch(img1_path, img2_path, output_path='stitched_result.jpg'):
         print("[ERROR] Could not load one or both images. Check file paths.")
         return None
 
-    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+    # Apply CLAHE to equalize local contrast across seasonal and lighting variations
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    gray1 = clahe.apply(cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY))
+    gray2 = clahe.apply(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY))
 
     # 1. Initialize SIFT (Scale-Invariant Feature Transform)
     sift = cv2.SIFT_create()
@@ -204,11 +206,18 @@ def robust_tile_stitch(img1_path, img2_path, output_path='stitched_result.jpg'):
     axes[1].axis('off')
 
     plt.tight_layout()
-    print("-> Rendering visualization window...")
-    try:
-        plt.show()
-    except Exception as e:
-        print(f"[INFO] Interactive GUI display skipped ({e}). Result image is saved at: {output_path}")
+    verification_plot = "stitched_verification.png"
+    plt.savefig(verification_plot, dpi=150)
+    print(f"[OK] Verification plot saved to: '{verification_plot}'")
+
+    if os.environ.get("HEADLESS", "0") != "1":
+        try:
+            print("-> Attempting interactive GUI display...")
+            plt.show(block=False)
+            plt.pause(0.5)
+        except Exception as e:
+            print(f"[INFO] Interactive GUI display skipped ({e}). Result images saved.")
+    plt.close()
 
     return stitched_canvas
 
