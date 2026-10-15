@@ -105,14 +105,14 @@ def compute_workflow_step_statuses():
 
 
 def main():
-    # 1. Initialize centralized application state & prewarm default location
-    AppStateManager.prewarm_default_data()
-
-    # 2. Apply aerospace dark theme
+    # 1. Apply aerospace dark theme immediately for seamless visual experience
     apply_futuristic_theme()
 
-    # 3. Top Mission Banner
+    # 2. Top Mission Banner
     render_hero_banner()
+
+    # 3. Initialize centralized application state
+    AppStateManager.init_state()
 
     # 4. Guided Workflow Step Indicator (1 to 6) with live status badges
     step_statuses, step_subtitles = compute_workflow_step_statuses()
@@ -128,34 +128,36 @@ def main():
     obs_date = active_obs.date_str if active_obs else "Awaiting query"
     obs_cloud = f"{active_obs.cloud_cover:.1f}%" if active_obs else "N/A"
 
-    st.sidebar.markdown(
-        f"""
-        <div class="telemetry-card" style="margin-top: 10px; font-size: 0.72rem; line-height: 1.4;">
-            <div style="color: #00f0ff; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">
-                🛰️ Active Data Provenance
-            </div>
-            • Target: <strong>{geocoded['name']}</strong><br>
-            • Coordinates: <code>{geocoded['lat']:.3f}°N, {geocoded['lon']:.3f}°E</code><br>
-            • Target Grid: <strong>{geocoded['target_utm']}</strong><br>
-            • Active Date: <strong>{obs_date}</strong><br>
-            • Cloud Cover: <strong>{obs_cloud}</strong><br>
-            • Resolution: <strong>10m MultiSpectral</strong><br>
-            <hr style="border-color: rgba(255,255,255,0.08); margin: 6px 0;">
-            <span style="color: #34d399;">● Shared State Synchronized</span>
-        </div>
-        """,
-        unsafe_allow_html=True
+    sidebar_card_html = (
+        f'<div class="telemetry-card" style="margin-top: 10px; font-size: 0.72rem; line-height: 1.4;">'
+        f'<div style="color: #00f0ff; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">🛰️ Active Data Provenance</div>'
+        f'• Target: <strong>{geocoded["name"]}</strong><br>'
+        f'• Coordinates: <code>{geocoded["lat"]:.3f}°N, {geocoded["lon"]:.3f}°E</code><br>'
+        f'• Target Grid: <strong>{geocoded["target_utm"]}</strong><br>'
+        f'• Active Date: <strong>{obs_date}</strong><br>'
+        f'• Cloud Cover: <strong>{obs_cloud}</strong><br>'
+        f'• Resolution: <strong>10m MultiSpectral</strong><br>'
+        f'<hr style="border-color: rgba(255,255,255,0.08); margin: 6px 0;">'
+        f'<span style="color: #34d399;">● Shared State Synchronized</span>'
+        f'</div>'
     )
+    if hasattr(st.sidebar, "html"):
+        st.sidebar.html(sidebar_card_html)
+    else:
+        st.sidebar.markdown(sidebar_card_html, unsafe_allow_html=True)
 
-    st.sidebar.markdown(
-        """
-        <div style="font-size: 0.70rem; color: #64748b; line-height: 1.4; padding: 4px;">
-            <strong>TerraPulse v2.0 Architecture:</strong><br>
-            Every workspace reads from the same verified Sentinel-2 data stream. Changing location or observation immediately updates all dependent maps, statistics, and AI analyses.
-        </div>
-        """,
-        unsafe_allow_html=True
+    sidebar_arch_html = (
+        '<div style="font-size: 0.70rem; color: #64748b; line-height: 1.4; padding: 4px;">'
+        '<strong>TerraPulse v2.0 Architecture:</strong><br>'
+        'Every workspace reads from the same verified Sentinel-2 data stream. Changing location or observation immediately updates all dependent maps, statistics, and AI analyses.'
+        '</div>'
     )
+    if hasattr(st.sidebar, "html"):
+        st.sidebar.html(sidebar_arch_html)
+    else:
+        st.sidebar.markdown(sidebar_arch_html, unsafe_allow_html=True)
+
+
 
     # 6. Four Clean Workspaces Navigation
     workspaces = st.tabs([

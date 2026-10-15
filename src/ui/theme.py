@@ -28,8 +28,8 @@ def apply_futuristic_theme():
         }
 
         /* Streamlit Main View Port */
-        .stApp {
-            background: radial-gradient(circle at 50% 0%, #0d1527 0%, #060911 100%);
+        html, body, .stApp, div[data-testid="stAppViewContainer"] {
+            background: radial-gradient(circle at 50% 0%, #0d1527 0%, #060911 100%) !important;
             color: var(--text-main);
             font-family: 'Space Grotesk', -apple-system, sans-serif;
         }
@@ -224,52 +224,50 @@ def apply_futuristic_theme():
 
 def render_hero_banner():
     """Renders the top futuristic mission banner."""
-    st.markdown(
-        """
-        <div class="hero-banner">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
-                <div>
-                    <h1 class="hero-title">🛰️ TerraPulse / EarthWatch AI</h1>
-                    <p class="hero-subtitle">
-                        Planetary-Scale Geospatial Vision, Bi-Temporal Change Detection & Spatiotemporal World Modeling
-                    </p>
-                </div>
-                <div style="margin-top: 8px;">
-                    <span class="tech-badge badge-cyan">● Online STAC Streamer</span>
-                    <span class="tech-badge badge-emerald">● ResNet-18 (96.4% Acc)</span>
-                    <span class="tech-badge badge-purple">● Siamese U-Net (0.80 F1)</span>
-                </div>
+    banner_html = """<div class="hero-banner">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+            <div>
+                <h1 class="hero-title">🛰️ TerraPulse / EarthWatch AI</h1>
+                <p class="hero-subtitle">
+                    Planetary-Scale Geospatial Vision, Bi-Temporal Change Detection & Spatiotemporal World Modeling
+                </p>
+            </div>
+            <div style="margin-top: 8px;">
+                <span class="tech-badge badge-cyan">● Online STAC Streamer</span>
+                <span class="tech-badge badge-emerald">● ResNet-18 (96.4% Acc)</span>
+                <span class="tech-badge badge-purple">● Siamese U-Net (0.80 F1)</span>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>"""
+    if hasattr(st, "html"):
+        st.html(banner_html)
+    else:
+        st.markdown(banner_html, unsafe_allow_html=True)
 
 def render_telemetry_sidebar(device_name="CPU"):
     """Renders the sidebar system status telemetry."""
-    st.sidebar.markdown(
-        f"""
-        <div class="telemetry-card">
-            <div style="font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
-                Core Telemetry
+    card_html = f"""<div class="telemetry-card">
+        <div style="font-size: 0.72rem; color: #64748b; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">
+            Core Telemetry
+        </div>
+        <div style="font-size: 1.1rem; font-weight: 700; color: #00f0ff; margin-top: 4px;">
+            TerraPulse v2.0
+        </div>
+        <div class="kpi-container" style="margin-top: 10px;">
+            <div class="kpi-item" style="min-width: 90px; padding: 6px 10px;">
+                <div class="kpi-label">Compute</div>
+                <div class="kpi-value" style="font-size: 0.95rem;">{device_name.upper()}</div>
             </div>
-            <div style="font-size: 1.1rem; font-weight: 700; color: #00f0ff; margin-top: 4px;">
-                TerraPulse v2.0
-            </div>
-            <div class="kpi-container" style="margin-top: 10px;">
-                <div class="kpi-item" style="min-width: 90px; padding: 6px 10px;">
-                    <div class="kpi-label">Compute</div>
-                    <div class="kpi-value" style="font-size: 0.95rem;">{device_name.upper()}</div>
-                </div>
-                <div class="kpi-item" style="min-width: 90px; padding: 6px 10px;">
-                    <div class="kpi-label">Status</div>
-                    <div class="kpi-value" style="font-size: 0.95rem; color: #34d399;">Active</div>
-                </div>
+            <div class="kpi-item" style="min-width: 90px; padding: 6px 10px;">
+                <div class="kpi-label">Status</div>
+                <div class="kpi-value" style="font-size: 0.95rem; color: #34d399;">Active</div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>"""
+    if hasattr(st.sidebar, "html"):
+        st.sidebar.html(card_html)
+    else:
+        st.sidebar.markdown(card_html, unsafe_allow_html=True)
 
 
 def render_workflow_step_indicator(
@@ -277,7 +275,7 @@ def render_workflow_step_indicator(
     step_subtitles=None,
     active_step: int = 1
 ):
-    """Renders the guided 6-step progress indicator for TerraPulse v2.0 workflow with live status badges."""
+    """Renders the guided 6-step progress indicator for TerraPulse v2.0 using native Streamlit containers."""
     steps = [
         (1, "1. Choose Location", "📍"),
         (2, "2. Select Imagery", "🛰️"),
@@ -287,9 +285,8 @@ def render_workflow_step_indicator(
         (6, "6. Investigate Findings", "🧠")
     ]
 
-    items_html = []
-    for step_num, step_title, step_icon in steps:
-        # Determine step status
+    cols = st.columns(6)
+    for idx, (step_num, step_title, step_icon) in enumerate(steps):
         if step_statuses and step_num in step_statuses:
             status = step_statuses[step_num]
         else:
@@ -302,50 +299,25 @@ def render_workflow_step_indicator(
 
         sub = (step_subtitles.get(step_num, "") if step_subtitles else "")
 
-        if status == "completed":
-            color = "#34d399"
-            bg = "rgba(16, 185, 129, 0.14)"
-            border = "rgba(16, 185, 129, 0.5)"
-            badge_html = "<span style='background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>✓ READY</span>"
-        elif status == "active":
-            color = "#00f0ff"
-            bg = "rgba(0, 240, 255, 0.18)"
-            border = "1px solid #00f0ff; box-shadow: 0 0 12px rgba(0, 240, 255, 0.35)"
-            badge_html = "<span style='background: rgba(0, 240, 255, 0.25); color: #00f0ff; border: 1px solid #00f0ff; padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>● ACTIVE</span>"
-        elif status == "ready":
-            color = "#fbbf24"
-            bg = "rgba(251, 191, 36, 0.10)"
-            border = "rgba(251, 191, 36, 0.4)"
-            badge_html = "<span style='background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem; font-weight: 700;'>⏳ READY</span>"
-        else:
-            color = "#64748b"
-            bg = "rgba(15, 23, 42, 0.5)"
-            border = "rgba(255, 255, 255, 0.08)"
-            badge_html = "<span style='background: rgba(255, 255, 255, 0.05); color: #64748b; border: 1px solid rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; font-size: 0.60rem;'>○ PENDING</span>"
+        with cols[idx]:
+            with st.container(border=True):
+                if status == "completed":
+                    st.markdown(f"**{step_icon} {step_title}**")
+                    st.markdown(":green[**✓ READY**]")
+                elif status == "active":
+                    st.markdown(f"**{step_icon} {step_title}**")
+                    st.markdown(":blue[**● ACTIVE**]")
+                elif status == "ready":
+                    st.markdown(f"**{step_icon} {step_title}**")
+                    st.markdown(":orange[**⏳ READY**]")
+                else:
+                    st.markdown(f"{step_icon} {step_title}")
+                    st.markdown(":gray[○ PENDING]")
 
-        sub_html = f"<div style='font-size: 0.60rem; color: #94a3b8; font-family: sans-serif; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{sub}</div>" if sub else ""
+                if sub:
+                    st.caption(sub)
 
-        items_html.append(
-            f"""
-            <div style="flex: 1; min-width: 145px; background: {bg}; border: {border}; border-radius: 8px; padding: 7px 10px; margin: 2px; transition: all 0.2s ease;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.70rem; color: {color}; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
-                        {step_icon} {step_title}
-                    </span>
-                    {badge_html}
-                </div>
-                {sub_html}
-            </div>
-            """
-        )
 
-    st.markdown(
-        f"""
-        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
-            {''.join(items_html)}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+
 
 
