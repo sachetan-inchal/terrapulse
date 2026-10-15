@@ -270,3 +270,57 @@ def render_telemetry_sidebar(device_name="CPU"):
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_workflow_step_indicator(active_step: int = 1):
+    """Renders the guided 6-step progress indicator for TerraPulse v2.0 workflow."""
+    steps = [
+        (1, "1. Choose Location", "📍"),
+        (2, "2. Select Imagery", "🛰️"),
+        (3, "3. Generate Map", "🗺️"),
+        (4, "4. Environmental Layers", "🌿"),
+        (5, "5. Compare Dates", "↔️"),
+        (6, "6. Investigate Findings", "🧠")
+    ]
+
+    items_html = []
+    for step_num, step_title, step_icon in steps:
+        if step_num < active_step:
+            # Completed
+            color = "#34d399"
+            bg = "rgba(16, 185, 129, 0.12)"
+            border = "rgba(16, 185, 129, 0.4)"
+            status_dot = "✓"
+        elif step_num == active_step:
+            # Active
+            color = "#00f0ff"
+            bg = "rgba(0, 240, 255, 0.16)"
+            border = "rgba(0, 240, 255, 0.6)"
+            status_dot = "●"
+        else:
+            # Upcoming
+            color = "#64748b"
+            bg = "rgba(15, 23, 42, 0.5)"
+            border = "rgba(255, 255, 255, 0.08)"
+            status_dot = "○"
+
+        items_html.append(
+            f"""
+            <div style="flex: 1; min-width: 140px; background: {bg}; border: 1px solid {border}; border-radius: 8px; padding: 6px 10px; margin: 2px;">
+                <div style="font-size: 0.68rem; color: {color}; font-family: 'JetBrains Mono', monospace; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                    <span>{step_icon} {step_title}</span>
+                    <span style="font-size: 0.75rem;">{status_dot}</span>
+                </div>
+            </div>
+            """
+        )
+
+    st.markdown(
+        f"""
+        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px;">
+            {''.join(items_html)}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
