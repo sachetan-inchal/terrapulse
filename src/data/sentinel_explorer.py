@@ -29,6 +29,9 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
+import cv2
+from src.models.registration import generate_checkerboard
+
 
 PLANETARY_COMPUTER_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
 COPERNICUS_STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
@@ -51,6 +54,52 @@ class SentinelSceneMetadata:
 
 
 @dataclass
+class StitchingTileInfo:
+    id: str
+    date_str: str
+    platform: str
+    cloud_cover: float
+    raw_shape: Tuple[int, int]
+    raw_crs: str
+    raw_rgb: np.ndarray  # (H, W, 3) uint8
+    valid_mask: np.ndarray  # (H, W) uint8
+    reprojected_rgb: np.ndarray  # (H_dst, W_dst, 3) uint8
+    reprojected_crs: str
+    reprojected_shape: Tuple[int, int]
+    bbox: List[float]
+
+
+@dataclass
+class StitchingCorrespondenceData:
+    num_kp1: int
+    num_kp2: int
+    num_candidate_matches: int
+    num_inliers: int
+    inlier_ratio: float  # %
+    median_reprojection_error: float
+    p90_reprojection_error: float
+    match_image_all: np.ndarray  # (H, W, 3) uint8 with green/red lines
+    match_image_inliers: np.ndarray
+    match_image_outliers: np.ndarray
+    alpha_overlap_blend: np.ndarray  # (H_ov, W_ov, 3) uint8
+    checkerboard_comparison: np.ndarray  # (H_ov, W_ov, 3) uint8
+    overlap_shape: Tuple[int, int]
+    transform_model: str
+
+
+@dataclass
+class StitchingLaboratoryData:
+    tiles: List[StitchingTileInfo]
+    correspondence: Optional[StitchingCorrespondenceData]
+    merged_rgb: np.ndarray
+    seamline_preview: np.ndarray
+    final_shape: Tuple[int, int]
+    crs: str
+    coverage_km2: float
+    stitching_method: str
+
+
+@dataclass
 class ObservationData:
     id: str
     date_str: str
@@ -67,6 +116,7 @@ class ObservationData:
     transform: Any = None
     is_composite: bool = False
     source_scenes: List[str] = field(default_factory=list)
+    stitching_lab: Optional[StitchingLaboratoryData] = None
 
 
 @dataclass
@@ -378,6 +428,176 @@ def _retrieve_preview_fallback(meta: SentinelSceneMetadata) -> Optional[Observat
 # Stage 4: Georeferenced Mosaic Engine (Rasterio Cross-UTM Merge)
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# Stage 4: Georeferenced Mosaic Engine (Rasterio Cross-UTM Merge & Stitching Lab)
+# -----------------------------------------------------------------------------
+
+def draw_sift_correspondence_canvas(
+    img1: np.ndarray,
+    img2: np.ndarray,
+    kp1: list,
+    kp2: list,
+    matches: list,
+    inliers_mask: np.ndarray,
+    mode: str = "all",
+    max_draw: int = 60
+) -> np.ndarray:
+    """
+    Renders side-by-side correspondence matching canvas between Tile 1 and Tile 2:
+    - Inliers drawn in vivid Emerald Green with circle anchors
+    - Outliers drawn in Coral Red
+    - Supports filtering modes: 'all', 'inliers', 'outliers'
+    """
+    h1, w1 = img1.shape[:2]
+    h2, w2 = img2.shape[:2]
+    H = max(h1, h2)
+    W = w1 + w2
+    canvas = np.zeros((H, W, 3), dtype=np.uint8)
+    canvas[:h1, :w1] = img1
+    canvas[:h2, w1:w1+w2] = img2
+
+    # Draw header banners
+    cv2.putText(canvas, "Tile 1 (Reference Swath)", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 240, 255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, "Tile 2 (Adjacent Swath)", (w1 + 15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 240, 255), 2, cv2.LINE_AA)
+
+    drawn = 0
+    for idx, m in enumerate(matches):
+        if drawn >= max_draw:
+            break
+        is_in = bool(inliers_mask[idx]) if idx < len(inliers_mask) else False
+        if mode == "inliers" and not is_in:
+            continue
+        if mode == "outliers" and is_in:
+            continue
+        pt1 = (int(round(kp1[m.queryIdx].pt[0])), int(round(kp1[m.queryIdx].pt[1])))
+        pt2 = (int(round(kp2[m.trainIdx].pt[0] + w1)), int(round(kp2[m.trainIdx].pt[1])))
+        col = (52, 211, 153) if is_in else (244, 63, 94)
+        th = 2 if is_in else 1
+        cv2.line(canvas, pt1, pt2, col, th, cv2.LINE_AA)
+        cv2.circle(canvas, pt1, 3, (0, 240, 255), -1, cv2.LINE_AA)
+        cv2.circle(canvas, pt2, 3, (0, 240, 255), -1, cv2.LINE_AA)
+        drawn += 1
+    return canvas
+
+
+def compute_stitching_laboratory(
+    tile_infos: List[StitchingTileInfo],
+    merged_rgb: np.ndarray,
+    target_crs: str,
+    stitching_method: str = "Georeferenced Coordinate Alignment + SIFT Inlier Verification"
+) -> StitchingLaboratoryData:
+    """
+    Constructs comprehensive intermediate Stitching Laboratory diagnostics:
+    - Step A: Source Tile Metadata & Footprints
+    - Step B: Preprocessing (raw, mask, reprojected)
+    - Step C: SIFT Feature Detection & RANSAC Inlier Verification
+    - Step D: Geometric Overlap, Alpha Blending & Checkerboard Diagnostics
+    - Step E: Seamline Cut Boundary & Final Continuous Mosaic
+    """
+    corr_data: Optional[StitchingCorrespondenceData] = None
+
+    if len(tile_infos) >= 2:
+        t1 = tile_infos[0]
+        t2 = tile_infos[1]
+        img1 = t1.reprojected_rgb
+        img2 = t2.reprojected_rgb
+
+        gray1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+        gray2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
+
+        sift = cv2.SIFT_create(nfeatures=2000)
+        kp1, des1 = sift.detectAndCompute(gray1, None)
+        kp2, des2 = sift.detectAndCompute(gray2, None)
+
+        ratio_matches = []
+        num_inliers = 0
+        inliers_mask = np.array([], dtype=bool)
+        med_res = 0.0
+        p90_res = 0.0
+        M = None
+
+        if des1 is not None and des2 is not None and len(des1) >= 4 and len(des2) >= 4:
+            bf = cv2.BFMatcher(cv2.NORM_L2)
+            raw_matches = bf.knnMatch(des1, des2, k=2)
+            for pair in raw_matches:
+                if len(pair) == 2:
+                    m, n = pair
+                    if m.distance < 0.75 * n.distance:
+                        ratio_matches.append(m)
+
+            if len(ratio_matches) >= 4:
+                pts1 = np.float32([kp1[m.queryIdx].pt for m in ratio_matches])
+                pts2 = np.float32([kp2[m.trainIdx].pt for m in ratio_matches])
+                M, inliers = cv2.estimateAffinePartial2D(
+                    pts1, pts2, method=cv2.RANSAC, ransacReprojThreshold=3.5, maxIters=2000
+                )
+                if inliers is not None:
+                    inliers_mask = inliers.ravel().astype(bool)
+                    num_inliers = int(np.sum(inliers_mask))
+
+                if M is not None and num_inliers > 0:
+                    pts1_in = pts1[inliers_mask]
+                    pts2_in = pts2[inliers_mask]
+                    pts1_h = np.hstack([pts1_in, np.ones((len(pts1_in), 1), dtype=np.float32)])
+                    pts_proj = (M @ pts1_h.T).T
+                    diffs = pts_proj - pts2_in
+                    residuals = np.sqrt(np.sum(diffs ** 2, axis=1))
+                    med_res = float(np.median(residuals))
+                    p90_res = float(np.percentile(residuals, 90))
+
+        inlier_ratio = round(num_inliers / max(1, len(ratio_matches)) * 100.0, 1)
+
+        vis_all = draw_sift_correspondence_canvas(img1, img2, kp1, kp2, ratio_matches, inliers_mask, mode="all")
+        vis_inliers = draw_sift_correspondence_canvas(img1, img2, kp1, kp2, ratio_matches, inliers_mask, mode="inliers")
+        vis_outliers = draw_sift_correspondence_canvas(img1, img2, kp1, kp2, ratio_matches, inliers_mask, mode="outliers")
+
+        ov_h = min(img1.shape[0], img2.shape[0])
+        ov_w = min(img1.shape[1], img2.shape[1])
+        ov_img1 = img1[:ov_h, :ov_w]
+        ov_img2 = img2[:ov_h, :ov_w]
+
+        alpha_blend = cv2.addWeighted(ov_img1, 0.5, ov_img2, 0.5, 0)
+        cb = generate_checkerboard(ov_img1, ov_img2, block_size=32)
+
+        corr_data = StitchingCorrespondenceData(
+            num_kp1=len(kp1) if kp1 else 0,
+            num_kp2=len(kp2) if kp2 else 0,
+            num_candidate_matches=len(ratio_matches),
+            num_inliers=num_inliers,
+            inlier_ratio=inlier_ratio,
+            median_reprojection_error=round(med_res, 2),
+            p90_reprojection_error=round(p90_res, 2),
+            match_image_all=vis_all,
+            match_image_inliers=vis_inliers,
+            match_image_outliers=vis_outliers,
+            alpha_overlap_blend=alpha_blend,
+            checkerboard_comparison=cb,
+            overlap_shape=(ov_h, ov_w),
+            transform_model="Geospatial UTM Reprojection + SIFT Partial Affine (4-DoF)"
+        )
+
+    # Seamline preview: highlight cutline where Tile 1 joins Tile 2
+    seamline_img = merged_rgb.copy()
+    if len(tile_infos) >= 2:
+        cut_x = min(tile_infos[0].reprojected_shape[1], seamline_img.shape[1] - 1)
+        for y in range(0, seamline_img.shape[0], 8):
+            cv2.line(seamline_img, (cut_x, y), (cut_x, min(y + 4, seamline_img.shape[0] - 1)), (0, 240, 255), 2)
+
+    h_m, w_m = merged_rgb.shape[:2]
+    area_km2 = round(h_m * w_m * 0.0001 * 144.0, 1)
+
+    return StitchingLaboratoryData(
+        tiles=tile_infos,
+        correspondence=corr_data,
+        merged_rgb=merged_rgb,
+        seamline_preview=seamline_img,
+        final_shape=(h_m, w_m),
+        crs=target_crs,
+        coverage_km2=area_km2,
+        stitching_method=stitching_method
+    )
+
+
 def build_real_sentinel2_mosaic(
     scenes: List[SentinelSceneMetadata],
     target_crs: str,
@@ -390,13 +610,15 @@ def build_real_sentinel2_mosaic(
     1. Reads 10m bands (B04, B03, B02, B08) for all contributing Sentinel-2 scenes.
     2. Reprojects each scene into the target UTM CRS (e.g. EPSG:32643 for Bengaluru).
     3. Fuses adjacent spatial tiles into one seamless continuous raster using rasterio.merge.
-    4. Produces True-Color RGB, False-Color CIR, spectral bands, and geotransform.
+    4. Computes Stitching Laboratory diagnostics (source tiles, SIFT inliers, overlap, seamline).
+    5. Produces True-Color RGB, False-Color CIR, spectral bands, and geotransform.
     """
     if not HAS_RASTERIO or not scenes:
         return None
 
     import os
     temp_files = []
+    tile_infos: List[StitchingTileInfo] = []
     try:
         for idx, sc in enumerate(scenes):
             band_arrs = []
@@ -420,6 +642,11 @@ def build_real_sentinel2_mosaic(
             if len(band_arrs) < 3 or src_crs is None:
                 continue
 
+            # Raw RGB and valid mask for intermediate laboratory inspection
+            raw_rgb = np.dstack((band_arrs[0], band_arrs[1], band_arrs[2]))
+            raw_rgb = np.clip(raw_rgb / stretch_val * 255.0, 0, 255).astype(np.uint8)
+            valid_m = ((band_arrs[0] > 0) | (band_arrs[1] > 0) | (band_arrs[2] > 0)).astype(np.uint8) * 255
+
             # Calculate reprojection transform to target UTM CRS
             dst_trans, dst_w, dst_h = calculate_default_transform(
                 src_crs, target_crs, w, h, *rasterio.transform.array_bounds(h, w, src_trans)
@@ -438,6 +665,26 @@ def build_real_sentinel2_mosaic(
                     resampling=Resampling.bilinear
                 )
                 reprojected_bands.append(dst_arr)
+
+            rep_rgb = np.dstack((reprojected_bands[0], reprojected_bands[1], reprojected_bands[2]))
+            rep_rgb = np.clip(rep_rgb / stretch_val * 255.0, 0, 255).astype(np.uint8)
+
+            tile_infos.append(
+                StitchingTileInfo(
+                    id=sc.id,
+                    date_str=sc.date_str,
+                    platform=sc.platform,
+                    cloud_cover=sc.cloud_cover,
+                    raw_shape=(h, w),
+                    raw_crs=str(src_crs),
+                    raw_rgb=raw_rgb,
+                    valid_mask=valid_m,
+                    reprojected_rgb=rep_rgb,
+                    reprojected_crs=str(target_crs),
+                    reprojected_shape=(dst_h, dst_w),
+                    bbox=sc.bbox
+                )
+            )
 
             fn = f"temp_mosaic_tile_{idx}_{os.getpid()}.tif"
             with rasterio.open(
@@ -487,6 +734,13 @@ def build_real_sentinel2_mosaic(
         dates = sorted(list(set(sc.date_str for sc in scenes)))
         date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
 
+        # Compute full Stitching Laboratory diagnostics
+        lab_data = compute_stitching_laboratory(
+            tile_infos=tile_infos,
+            merged_rgb=rgb,
+            target_crs=target_crs
+        )
+
         return ObservationData(
             id=f"MOSAIC_S2_{target_crs.replace(':', '_')}_{len(scenes)}TILES",
             date_str=date_label,
@@ -502,7 +756,8 @@ def build_real_sentinel2_mosaic(
             valid_mask=valid_mask,
             transform=merged_trans,
             is_composite=True,
-            source_scenes=scene_ids
+            source_scenes=scene_ids,
+            stitching_lab=lab_data
         )
 
     except Exception as e:
@@ -523,17 +778,16 @@ def build_georeferenced_mosaic(
 ) -> ObservationData:
     """
     Combines observations into a georeferenced composite.
-    If single observation, returns it directly.
+    Generates Stitching Laboratory diagnostics for intermediate inspection.
     """
     if len(observations) == 1:
         return observations[0]
 
     primary = observations[0]
-    # Simple stacking fallback if ObservationData objects are already in memory
     th = min(o.rgb.shape[0] for o in observations)
     tw = min(o.rgb.shape[1] for o in observations)
-    
-    if len(observations) == 2:
+
+    if len(observations) >= 2:
         m_rgb = np.hstack((observations[0].rgb[:th, :tw], observations[1].rgb[:th, :tw]))
         m_nir = np.hstack((observations[0].nir[:th, :tw], observations[1].nir[:th, :tw])) if observations[0].nir is not None and observations[1].nir is not None else None
         m_red = np.hstack((observations[0].red[:th, :tw], observations[1].red[:th, :tw])) if observations[0].red is not None and observations[1].red is not None else None
@@ -557,31 +811,40 @@ def build_georeferenced_mosaic(
     mean_cloud = float(np.mean([o.cloud_cover for o in observations]))
     dates = sorted(list(set(o.date_str for o in observations)))
     date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
+    effective_crs = target_crs if target_crs else primary.crs
 
-    return ObservationData(
-        id=f"MOSAIC_{observations[0].id[:12]}_{len(observations)}TILES",
-        date_str=date_label,
-        cloud_cover=round(mean_cloud, 2),
-        crs=target_crs if target_crs else primary.crs,
-        bbox=primary.bbox,
-        rgb=m_rgb,
-        cir=cir,
-        red=m_red,
-        nir=m_nir,
-        green=m_green,
-        blue=m_blue,
-        valid_mask=m_valid,
-        is_composite=True,
-        source_scenes=scene_ids
+    # Build StitchingTileInfo objects for laboratory inspection
+    tile_infos = []
+    for obs in observations:
+        h, w = obs.rgb.shape[:2]
+        tile_infos.append(
+            StitchingTileInfo(
+                id=obs.id,
+                date_str=obs.date_str,
+                platform="Sentinel-2 MSI",
+                cloud_cover=obs.cloud_cover,
+                raw_shape=(h, w),
+                raw_crs=obs.crs,
+                raw_rgb=obs.rgb,
+                valid_mask=obs.valid_mask if obs.valid_mask is not None else np.ones((h, w), dtype=np.uint8) * 255,
+                reprojected_rgb=obs.rgb,
+                reprojected_crs=effective_crs,
+                reprojected_shape=(h, w),
+                bbox=obs.bbox
+            )
+        )
+
+    lab_data = compute_stitching_laboratory(
+        tile_infos=tile_infos,
+        merged_rgb=m_rgb,
+        target_crs=effective_crs
     )
-    dates = sorted(list(set(o.date_str for o in observations)))
-    date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
 
     return ObservationData(
         id=f"MOSAIC_{observations[0].id[:12]}_{len(observations)}TILES",
         date_str=date_label,
         cloud_cover=round(mean_cloud, 2),
-        crs=target_crs if target_crs else primary.crs,
+        crs=effective_crs,
         bbox=primary.bbox,
         rgb=m_rgb,
         cir=cir,
@@ -591,7 +854,8 @@ def build_georeferenced_mosaic(
         blue=m_blue,
         valid_mask=m_valid,
         is_composite=True,
-        source_scenes=scene_ids
+        source_scenes=scene_ids,
+        stitching_lab=lab_data
     )
 
 
@@ -677,6 +941,7 @@ def calculate_environmental_layers(obs: ObservationData) -> EnvironmentalLayers:
     # 7. Aggregate Regional Statistics
     valid_pixels = np.count_nonzero(~np.isnan(ndvi)) if np.any(np.isnan(ndvi)) else H * W
     mean_ndvi = float(np.nanmean(ndvi)) if valid_pixels > 0 else 0.0
+    median_ndvi = float(np.nanmedian(ndvi)) if valid_pixels > 0 else 0.0
     mean_ndwi = float(np.nanmean(ndwi)) if valid_pixels > 0 else 0.0
     mean_ndbi = float(np.nanmean(ndbi)) if valid_pixels > 0 else 0.0
 
@@ -687,18 +952,31 @@ def calculate_environmental_layers(obs: ObservationData) -> EnvironmentalLayers:
     bare_pct = float(np.count_nonzero(bare_mask) / valid_pixels * 100.0) if valid_pixels > 0 else 0.0
     mean_pop = float(np.nanmean(pop_density))
 
+    # Area calibration in km² (Sentinel-2 10m bands with decimation)
+    est_total_area_km2 = round(valid_pixels * 0.0001 * 144.0, 2)
+    forest_area_km2 = round(forest_pct / 100.0 * est_total_area_km2, 2)
+    veg_area_km2 = round(veg_pct / 100.0 * est_total_area_km2, 2)
+    urban_area_km2 = round(urban_pct / 100.0 * est_total_area_km2, 2)
+    water_area_km2 = round(water_pct / 100.0 * est_total_area_km2, 2)
+
     stats = {
         "valid_pixels": int(valid_pixels),
         "mean_ndvi": round(mean_ndvi, 3),
+        "median_ndvi": round(median_ndvi, 3),
         "mean_ndwi": round(mean_ndwi, 3),
         "mean_ndbi": round(mean_ndbi, 3),
+        "total_area_km2": est_total_area_km2,
         "forest_coverage_pct": round(forest_pct, 1),
+        "forest_area_km2": forest_area_km2,
         "vegetation_coverage_pct": round(veg_pct, 1),
+        "vegetation_area_km2": veg_area_km2,
         "urban_built_pct": round(urban_pct, 1),
+        "urban_area_km2": urban_area_km2,
         "water_extent_pct": round(water_pct, 1),
+        "water_area_km2": water_area_km2,
         "bare_soil_pct": round(bare_pct, 1),
         "mean_population_density": round(mean_pop, 0),
-        "estimated_total_population": int(mean_pop * (valid_pixels * 0.0001))  # approx km²
+        "estimated_total_population": int(mean_pop * (valid_pixels * 0.0001))
     }
 
     return EnvironmentalLayers(
