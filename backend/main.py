@@ -14,8 +14,8 @@ from backend.models.schemas import (
     ChangeDetectionResult, RegistrationResult, InvestigationResponse,
     FutureScenario
 )
-from backend.services.geocoding import list_preset_locations, get_location_by_id, search_locations
-from backend.services.satellite import get_scenes_for_location, query_live_stac_sentinel
+from backend.services.geocoding import list_preset_locations, get_location_by_id, geocode_location
+from backend.services.satellite import get_scenes_for_location, fetch_real_stac_scenes
 from backend.services.vision import compute_sift_registration
 from backend.services.analysis import get_environmental_analysis, compute_temporal_change
 from backend.services.investigator import investigate_region
@@ -78,7 +78,7 @@ def get_live_stac_scenes(
     max_lat: float = Query(13.10),
     max_items: int = Query(4)
 ):
-    return query_live_stac_sentinel([min_lon, min_lat, max_lon, max_lat], max_items=max_items)
+    return fetch_real_stac_scenes([min_lon, min_lat, max_lon, max_lat], max_cloud=20.0)[:max_items]
 
 @app.get("/api/analysis", response_model=EnvironmentalAnalysis)
 def get_analysis_endpoint(
