@@ -10,3 +10,7 @@ checkpoints/*.pth
 ._*
 *.egg-info/
 .pytest_cache/
+cache/
+frontend/node_modules/
+frontend/dist/
+
