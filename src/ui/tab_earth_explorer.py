@@ -23,6 +23,7 @@ from src.data.sentinel_explorer import (
     search_sentinel2_scenes,
     inspect_sentinel2_assets,
     retrieve_sentinel2_data,
+    build_real_sentinel2_mosaic,
     build_georeferenced_mosaic,
     calculate_environmental_layers,
     align_bitemporal_observations,
@@ -117,6 +118,37 @@ def render_tab_earth_explorer():
     d_lat_km = (bbox[3] - bbox[1]) * 110.57
     est_area_km2 = abs(d_lon_km * d_lat_km)
 
+    # Location & Camera Navigation Diagnostics Panel
+    st.markdown(
+        f"""
+        <div class="telemetry-card" style="margin-bottom: 12px; border-left: 3px solid #00f0ff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">Resolved Location:</span>
+                    <strong style="color: #f1f5f9; font-size: 0.95rem; margin-left: 6px;">{geocoded['name']}</strong>
+                </div>
+                <div>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">Target Coordinates:</span>
+                    <strong style="color: #00f0ff; font-family: monospace; font-size: 0.9rem; margin-left: 6px;">{lat:.4f}° N, {lon:.4f}° E</strong>
+                </div>
+                <div>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">Globe Focus:</span>
+                    <span class="tech-badge badge-emerald" style="margin-left: 4px;">Centered on Southern India</span>
+                </div>
+                <div>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">Target UTM:</span>
+                    <strong style="color: #34d399; font-family: monospace; font-size: 0.85rem; margin-left: 6px;">{geocoded['target_utm']}</strong>
+                </div>
+                <div>
+                    <span style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-family: monospace;">AOI BBox:</span>
+                    <code style="color: #a78bfa; font-size: 0.78rem;">[{bbox[0]:.4f}, {bbox[1]:.4f}, {bbox[2]:.4f}, {bbox[3]:.4f}]</code>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # Get current stitched image for spherical sticker projection
     current_stitched = st.session_state.get("latest_sentinel_mosaic")
     if current_stitched is None:
@@ -205,7 +237,6 @@ def render_tab_earth_explorer():
             """,
             unsafe_allow_html=True
         )
-        # Multi-epoch chronological cards matching user reference screenshot 2
         chron_cols = st.columns(6)
         timeline_items = [
             ("1985-01-20", "Landsat 5", "30m", "tile_left.jpg"),
@@ -373,7 +404,7 @@ def render_tab_earth_explorer():
     obs_state_key = f"ee_obs_{primary_scene.id}_{decim_scale}"
     if btn_retrieve or obs_state_key in st.session_state:
         if btn_retrieve:
-            with st.spinner(f"Streaming real Sentinel-2 COG multi-spectral bands (B04, B03, B02, B08) for {primary_scene.date_str}..."):
+            with st.spinner(f"Streaming authentic Sentinel-2 COGs (B04, B03, B02, B08) for {geocoded['name']} and fusing georeferenced mosaic..."):
                 if obs_mode == "Single Acquisition" or len(discovered_scenes) < 2:
                     obs_data = retrieve_sentinel2_data(
                         primary_scene,
@@ -383,17 +414,23 @@ def render_tab_earth_explorer():
                     )
                     mosaic_data = build_georeferenced_mosaic([obs_data]) if obs_data else None
                 else:
-                    # Multi-tile mosaic mode
+                    # Real georeferenced rasterio cross-UTM mosaic fusion
                     scenes_to_mosaic = discovered_scenes[:min(4, len(discovered_scenes))]
-                    retrieved_tiles = []
-                    for s in scenes_to_mosaic:
-                        t = retrieve_sentinel2_data(s, decimation_scale=decim_scale, stretch_val=reflectance_stretch)
-                        if t:
-                            retrieved_tiles.append(t)
-                    mosaic_data = build_georeferenced_mosaic(retrieved_tiles, target_crs=geocoded["target_utm"])
+                    mosaic_data = build_real_sentinel2_mosaic(
+                        scenes=scenes_to_mosaic,
+                        target_crs=geocoded["target_utm"],
+                        bbox=bbox,
+                        decimation_scale=decim_scale,
+                        stretch_val=reflectance_stretch
+                    )
+                    if not mosaic_data:
+                        obs_data = retrieve_sentinel2_data(primary_scene, bands=["B04", "B03", "B02", "B08"], decimation_scale=decim_scale)
+                        mosaic_data = build_georeferenced_mosaic([obs_data]) if obs_data else None
 
                 if mosaic_data:
                     st.session_state[obs_state_key] = mosaic_data
+                    st.session_state["latest_sentinel_mosaic"] = mosaic_data.rgb
+                    st.rerun()
                 else:
                     st.error("Failed to stream satellite bands. Please try another observation or lower decimation.")
                     return

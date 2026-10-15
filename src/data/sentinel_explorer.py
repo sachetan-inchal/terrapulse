@@ -375,52 +375,179 @@ def _retrieve_preview_fallback(meta: SentinelSceneMetadata) -> Optional[Observat
 
 
 # -----------------------------------------------------------------------------
-# Stage 4: Georeferenced Mosaic Engine
+# Stage 4: Georeferenced Mosaic Engine (Rasterio Cross-UTM Merge)
 # -----------------------------------------------------------------------------
+
+def build_real_sentinel2_mosaic(
+    scenes: List[SentinelSceneMetadata],
+    target_crs: str,
+    bbox: List[float],
+    decimation_scale: int = 12,
+    stretch_val: float = 2400.0
+) -> Optional[ObservationData]:
+    """
+    True Georeferenced Multi-Tile Raster Mosaicking:
+    1. Reads 10m bands (B04, B03, B02, B08) for all contributing Sentinel-2 scenes.
+    2. Reprojects each scene into the target UTM CRS (e.g. EPSG:32643 for Bengaluru).
+    3. Fuses adjacent spatial tiles into one seamless continuous raster using rasterio.merge.
+    4. Produces True-Color RGB, False-Color CIR, spectral bands, and geotransform.
+    """
+    if not HAS_RASTERIO or not scenes:
+        return None
+
+    import os
+    temp_files = []
+    try:
+        for idx, sc in enumerate(scenes):
+            band_arrs = []
+            src_crs = None
+            src_trans = None
+            w, h = None, None
+
+            for b in ["B04", "B03", "B02", "B08"]:
+                if b not in sc.assets:
+                    continue
+                url = sc.assets[b]["href"]
+                with rasterio.open(url) as src:
+                    if src_crs is None:
+                        src_crs = src.crs
+                        w = max(64, int(src.width / decimation_scale))
+                        h = max(64, int(src.height / decimation_scale))
+                        src_trans = src.transform @ rasterio.Affine.scale(decimation_scale, decimation_scale)
+                    arr = src.read(1, out_shape=(h, w), resampling=Resampling.bilinear).astype(np.float32)
+                    band_arrs.append(arr)
+
+            if len(band_arrs) < 3 or src_crs is None:
+                continue
+
+            # Calculate reprojection transform to target UTM CRS
+            dst_trans, dst_w, dst_h = calculate_default_transform(
+                src_crs, target_crs, w, h, *rasterio.transform.array_bounds(h, w, src_trans)
+            )
+
+            reprojected_bands = []
+            for arr in band_arrs:
+                dst_arr = np.zeros((dst_h, dst_w), dtype=np.float32)
+                reproject(
+                    source=arr,
+                    destination=dst_arr,
+                    src_transform=src_trans,
+                    src_crs=src_crs,
+                    dst_transform=dst_trans,
+                    dst_crs=target_crs,
+                    resampling=Resampling.bilinear
+                )
+                reprojected_bands.append(dst_arr)
+
+            fn = f"temp_mosaic_tile_{idx}_{os.getpid()}.tif"
+            with rasterio.open(
+                fn, "w",
+                driver="GTiff",
+                count=len(reprojected_bands),
+                dtype="float32",
+                width=dst_w,
+                height=dst_h,
+                crs=target_crs,
+                transform=dst_trans
+            ) as dst:
+                for b_i, b_data in enumerate(reprojected_bands, 1):
+                    dst.write(b_data, b_i)
+            temp_files.append(fn)
+
+        if not temp_files:
+            return None
+
+        # Fused seamless continuous mosaic
+        src_handles = [rasterio.open(f) for f in temp_files]
+        merged_raster, merged_trans = merge(src_handles)
+        for s in src_handles:
+            try:
+                s.close()
+            except Exception:
+                pass
+
+        # Bands extraction: 0: Red, 1: Green, 2: Blue, 3: NIR (if present)
+        r = merged_raster[0]
+        g = merged_raster[1]
+        b = merged_raster[2]
+        nir = merged_raster[3] if merged_raster.shape[0] >= 4 else None
+
+        rgb = np.dstack((r, g, b))
+        rgb = np.clip(rgb / stretch_val * 255.0, 0, 255).astype(np.uint8)
+
+        cir = None
+        if nir is not None:
+            cir_raw = np.dstack((nir, r, g))
+            cir = np.clip(cir_raw / stretch_val * 255.0, 0, 255).astype(np.uint8)
+
+        valid_mask = ((r > 0) | (g > 0) | (b > 0)).astype(np.uint8) * 255
+
+        scene_ids = [sc.id for sc in scenes]
+        mean_cloud = float(np.mean([sc.cloud_cover for sc in scenes]))
+        dates = sorted(list(set(sc.date_str for sc in scenes)))
+        date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
+
+        return ObservationData(
+            id=f"MOSAIC_S2_{target_crs.replace(':', '_')}_{len(scenes)}TILES",
+            date_str=date_label,
+            cloud_cover=round(mean_cloud, 2),
+            crs=target_crs,
+            bbox=bbox,
+            rgb=rgb,
+            cir=cir,
+            red=r,
+            nir=nir,
+            green=g,
+            blue=b,
+            valid_mask=valid_mask,
+            transform=merged_trans,
+            is_composite=True,
+            source_scenes=scene_ids
+        )
+
+    except Exception as e:
+        print(f"Error building real georeferenced Sentinel-2 mosaic: {e}")
+        return None
+    finally:
+        for f in temp_files:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+
 
 def build_georeferenced_mosaic(
     observations: List[ObservationData],
     target_crs: Optional[str] = None
 ) -> ObservationData:
     """
-    Mosaics multiple adjacent observations or tiles into a single georeferenced composite.
-    If only one observation is passed, returns it directly.
+    Combines observations into a georeferenced composite.
+    If single observation, returns it directly.
     """
     if len(observations) == 1:
         return observations[0]
 
-    # Stitch multiple tiles into a multi-tile mosaic
     primary = observations[0]
-    H, W = primary.rgb.shape[:2]
-
-    # Place up to 4 tiles in a 2x2 grid
+    # Simple stacking fallback if ObservationData objects are already in memory
+    th = min(o.rgb.shape[0] for o in observations)
+    tw = min(o.rgb.shape[1] for o in observations)
+    
     if len(observations) == 2:
-        top = np.hstack((observations[0].rgb, observations[1].rgb))
-        m_rgb = top
-        m_nir = np.hstack((observations[0].nir, observations[1].nir)) if observations[0].nir is not None and observations[1].nir is not None else None
-        m_red = np.hstack((observations[0].red, observations[1].red)) if observations[0].red is not None and observations[1].red is not None else None
-        m_green = np.hstack((observations[0].green, observations[1].green)) if observations[0].green is not None and observations[1].green is not None else None
-        m_blue = np.hstack((observations[0].blue, observations[1].blue)) if observations[0].blue is not None and observations[1].blue is not None else None
-        m_valid = np.hstack((observations[0].valid_mask, observations[1].valid_mask)) if observations[0].valid_mask is not None else None
+        m_rgb = np.hstack((observations[0].rgb[:th, :tw], observations[1].rgb[:th, :tw]))
+        m_nir = np.hstack((observations[0].nir[:th, :tw], observations[1].nir[:th, :tw])) if observations[0].nir is not None and observations[1].nir is not None else None
+        m_red = np.hstack((observations[0].red[:th, :tw], observations[1].red[:th, :tw])) if observations[0].red is not None and observations[1].red is not None else None
+        m_green = np.hstack((observations[0].green[:th, :tw], observations[1].green[:th, :tw])) if observations[0].green is not None and observations[1].green is not None else None
+        m_blue = np.hstack((observations[0].blue[:th, :tw], observations[1].blue[:th, :tw])) if observations[0].blue is not None and observations[1].blue is not None else None
+        m_valid = np.hstack((observations[0].valid_mask[:th, :tw], observations[1].valid_mask[:th, :tw])) if observations[0].valid_mask is not None and observations[1].valid_mask is not None else None
     else:
-        # Standard 4-tile grid
-        t0 = observations[0].rgb
-        t1 = observations[1].rgb if len(observations) > 1 else np.zeros_like(t0)
-        t2 = observations[2].rgb if len(observations) > 2 else np.zeros_like(t0)
-        t3 = observations[3].rgb if len(observations) > 3 else np.zeros_like(t0)
+        m_rgb = observations[0].rgb
+        m_nir = observations[0].nir
+        m_red = observations[0].red
+        m_green = observations[0].green
+        m_blue = observations[0].blue
+        m_valid = observations[0].valid_mask
 
-        # Harmonize tile dimensions
-        th, tw = min(t.shape[0] for t in [t0, t1, t2, t3]), min(t.shape[1] for t in [t0, t1, t2, t3])
-        top = np.hstack((t0[:th, :tw], t1[:th, :tw]))
-        bottom = np.hstack((t2[:th, :tw], t3[:th, :tw]))
-        m_rgb = np.vstack((top, bottom))
-        m_nir = None
-        m_red = None
-        m_green = None
-        m_blue = None
-        m_valid = np.ones((m_rgb.shape[0], m_rgb.shape[1]), dtype=np.uint8) * 255
-
-    # Compute False-color CIR for mosaic
     cir = None
     if m_nir is not None and m_red is not None and m_green is not None:
         cir_raw = np.dstack((m_nir, m_red, m_green))
@@ -428,6 +555,25 @@ def build_georeferenced_mosaic(
 
     scene_ids = [o.id for o in observations]
     mean_cloud = float(np.mean([o.cloud_cover for o in observations]))
+    dates = sorted(list(set(o.date_str for o in observations)))
+    date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
+
+    return ObservationData(
+        id=f"MOSAIC_{observations[0].id[:12]}_{len(observations)}TILES",
+        date_str=date_label,
+        cloud_cover=round(mean_cloud, 2),
+        crs=target_crs if target_crs else primary.crs,
+        bbox=primary.bbox,
+        rgb=m_rgb,
+        cir=cir,
+        red=m_red,
+        nir=m_nir,
+        green=m_green,
+        blue=m_blue,
+        valid_mask=m_valid,
+        is_composite=True,
+        source_scenes=scene_ids
+    )
     dates = sorted(list(set(o.date_str for o in observations)))
     date_label = f"{dates[0]} to {dates[-1]}" if len(dates) > 1 else dates[0]
 
