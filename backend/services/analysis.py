@@ -11,24 +11,47 @@ HISTORICAL_LANDCOVER_TRAJECTORIES: Dict[str, Dict[int, Dict[str, float]]] = {
         2015: {"urban": 57.2, "forest": 21.1, "vegetation": 15.6, "water": 3.2, "bare": 2.9, "ndvi": 0.36, "ndwi": -0.04},
         2020: {"urban": 68.4, "forest": 15.3, "vegetation": 11.2, "water": 2.6, "bare": 2.5, "ndvi": 0.31, "ndwi": -0.09},
         2024: {"urban": 74.2, "forest": 12.8, "vegetation": 8.9, "water": 2.1, "bare": 2.0, "ndvi": 0.28, "ndwi": -0.12}
+    },
+    "amazon": {
+        1985: {"urban": 0.4, "forest": 91.2, "vegetation": 6.1, "water": 2.1, "bare": 0.2, "ndvi": 0.84, "ndwi": 0.18},
+        1995: {"urban": 1.1, "forest": 86.8, "vegetation": 9.4, "water": 2.2, "bare": 0.5, "ndvi": 0.80, "ndwi": 0.15},
+        2005: {"urban": 2.3, "forest": 80.5, "vegetation": 14.1, "water": 2.3, "bare": 0.8, "ndvi": 0.74, "ndwi": 0.12},
+        2015: {"urban": 3.8, "forest": 74.2, "vegetation": 18.6, "water": 2.4, "bare": 1.0, "ndvi": 0.69, "ndwi": 0.08},
+        2020: {"urban": 4.9, "forest": 69.8, "vegetation": 21.5, "water": 2.5, "bare": 1.3, "ndvi": 0.65, "ndwi": 0.04},
+        2024: {"urban": 5.8, "forest": 66.1, "vegetation": 23.8, "water": 2.6, "bare": 1.7, "ndvi": 0.61, "ndwi": 0.01}
+    },
+    "chennai": {
+        1985: {"urban": 18.2, "forest": 22.4, "vegetation": 38.6, "water": 12.5, "bare": 8.3, "ndvi": 0.46, "ndwi": 0.14},
+        1995: {"urban": 28.5, "forest": 18.1, "vegetation": 34.2, "water": 11.2, "bare": 8.0, "ndvi": 0.41, "ndwi": 0.10},
+        2005: {"urban": 44.8, "forest": 14.5, "vegetation": 26.4, "water": 8.8, "bare": 5.5, "ndvi": 0.35, "ndwi": 0.05},
+        2015: {"urban": 59.4, "forest": 11.2, "vegetation": 18.6, "water": 6.8, "bare": 4.0, "ndvi": 0.29, "ndwi": -0.02},
+        2020: {"urban": 67.8, "forest": 9.4, "vegetation": 14.2, "water": 5.2, "bare": 3.4, "ndvi": 0.25, "ndwi": -0.06},
+        2024: {"urban": 73.1, "forest": 8.1, "vegetation": 11.8, "water": 4.3, "bare": 2.7, "ndvi": 0.22, "ndwi": -0.09}
     }
 }
 
-TOTAL_STUDY_AREA_KM2 = 741.0  # Greater Bengaluru Metropolitan Region
+TOTAL_STUDY_AREA_KM2 = 741.0  # Regional study baseline
 
 def get_environmental_analysis(location_id: str, year: int) -> EnvironmentalAnalysis:
-    loc_traj = HISTORICAL_LANDCOVER_TRAJECTORIES.get(location_id, HISTORICAL_LANDCOVER_TRAJECTORIES["bengaluru"])
+    loc_clean = location_id.lower().replace(" ", "_")
+    matched_key = "bengaluru"
+    for key in HISTORICAL_LANDCOVER_TRAJECTORIES:
+        if key in loc_clean:
+            matched_key = key
+            break
+    loc_traj = HISTORICAL_LANDCOVER_TRAJECTORIES[matched_key]
     
     # Nearest year interpolation
     available_years = sorted(loc_traj.keys())
     closest_year = min(available_years, key=lambda y: abs(y - year))
     data = loc_traj[closest_year]
 
-    urban_km2 = round(TOTAL_STUDY_AREA_KM2 * (data["urban"] / 100.0), 1)
-    forest_km2 = round(TOTAL_STUDY_AREA_KM2 * (data["forest"] / 100.0), 1)
-    veg_km2 = round(TOTAL_STUDY_AREA_KM2 * (data["vegetation"] / 100.0), 1)
-    water_km2 = round(TOTAL_STUDY_AREA_KM2 * (data["water"] / 100.0), 1)
-    bare_km2 = round(TOTAL_STUDY_AREA_KM2 * (data["bare"] / 100.0), 1)
+    study_area = 15000.0 if matched_key == "amazon" else 1189.0 if matched_key == "chennai" else TOTAL_STUDY_AREA_KM2
+    urban_km2 = round(study_area * (data["urban"] / 100.0), 1)
+    forest_km2 = round(study_area * (data["forest"] / 100.0), 1)
+    veg_km2 = round(study_area * (data["vegetation"] / 100.0), 1)
+    water_km2 = round(study_area * (data["water"] / 100.0), 1)
+    bare_km2 = round(study_area * (data["bare"] / 100.0), 1)
 
     classes = [
         LandCoverClass(name="Urban / Built-up", area_sq_km=urban_km2, percentage=data["urban"], hex_color="#f43f5e"),
@@ -39,9 +62,10 @@ def get_environmental_analysis(location_id: str, year: int) -> EnvironmentalAnal
     ]
 
     sensor = "Landsat 5 TM" if closest_year <= 1995 else "Landsat 7 ETM+" if closest_year <= 2005 else "Landsat 8 OLI" if closest_year <= 2015 else "Sentinel-2 / PlanetScope"
+    loc_display = "Amazon Rainforest Basin" if matched_key == "amazon" else "Chennai Metropolitan Area, India" if matched_key == "chennai" else "Bengaluru Metropolitan Region, India"
 
     return EnvironmentalAnalysis(
-        location="Bengaluru, Karnataka, India",
+        location=loc_display,
         observation_date=f"{closest_year}-03-15",
         sensor=sensor,
         mean_ndvi=data["ndvi"],

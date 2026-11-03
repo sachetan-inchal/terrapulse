@@ -9,6 +9,7 @@ import { SatelliteScene } from '../../types';
 
 interface InvestigationMapProps {
   center: [number, number]; // [lat, lon]
+  zoom?: number;
   stations: StationMeasurement[];
   heatmapData: HeatmapData | null;
   activeGeojson?: any;
@@ -22,6 +23,7 @@ interface InvestigationMapProps {
 
 export const InvestigationMap: React.FC<InvestigationMapProps> = ({
   center,
+  zoom,
   stations,
   heatmapData,
   activeGeojson,
@@ -58,7 +60,7 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
 
     const map = L.map(mapContainerRef.current, {
       center: center,
-      zoom: 12,
+      zoom: zoom !== undefined ? zoom : 12,
       zoomControl: false,
       attributionControl: false
     });
@@ -86,12 +88,13 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
     };
   }, []);
 
-  // Pan to center when center coordinates change
+  // Pan to center when center coordinates or zoom change
   useEffect(() => {
-    if (mapInstanceRef.current && center[0] && center[1]) {
-      mapInstanceRef.current.setView(center, mapInstanceRef.current.getZoom(), { animate: true });
+    if (mapInstanceRef.current && center[0] !== undefined && center[1] !== undefined) {
+      const targetZoom = zoom !== undefined ? zoom : mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setView(center, targetZoom, { animate: true });
     }
-  }, [center]);
+  }, [center, zoom]);
 
   // Render Stations Layer
   useEffect(() => {

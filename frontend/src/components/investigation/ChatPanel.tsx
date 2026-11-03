@@ -263,11 +263,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   const suggestedQueries = [
-    "What environmental changes are happening around the selected location?",
-    "Why are these changes happening?",
-    "Show me scientific research supporting this.",
-    "What are the likely environmental effects over the next five years?",
-    "Explain your findings in simple language."
+    "Which is the highest mountain in India?",
+    "Why is air pollution increasing in Chennai?",
+    "What is NDVI?",
+    "Analyze vegetation changes in the Amazon rainforest.",
+    "Find scientific research about groundwater contamination."
   ];
 
   const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
@@ -287,7 +287,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
             <div className="text-[10px] text-cyan-400/80 font-mono flex items-center gap-1 truncate">
               <MapPin className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
-              <span className="truncate">{currentLocationName}</span>
+              <span className="truncate">{currentLocationName || 'Global Investigation Space'}</span>
             </div>
           </div>
         </div>
