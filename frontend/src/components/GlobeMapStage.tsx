@@ -11,6 +11,7 @@ interface GlobeMapStageProps {
   is3DMode: boolean;
   onToggle3D: () => void;
   onZoomToRegion?: () => void;
+  showObservationCards?: boolean;
 }
 
 export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
@@ -20,7 +21,8 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
   onSelectYear,
   is3DMode,
   onToggle3D,
-  onZoomToRegion
+  onZoomToRegion,
+  showObservationCards = false
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [globeRotation, setGlobeRotation] = useState(0);
@@ -107,61 +109,64 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
           />
         </div>
 
-        {/* Dynamic Glowing Tether Lines from Center Target to 4 Satellite Observation Cards */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ overflow: 'visible' }}>
-          <line x1="50%" y1="50%" x2="22%" y2="18%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
-          <line x1="50%" y1="50%" x2="25%" y2="82%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
-          <line x1="50%" y1="50%" x2="78%" y2="20%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
-          <line x1="50%" y1="50%" x2="78%" y2="80%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
-        </svg>
+        {/* Dynamic Glowing Tether Lines & Floating Satellite Observation Callout Cards (When Enabled) */}
+        {showObservationCards && (
+          <>
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ overflow: 'visible' }}>
+              <line x1="50%" y1="50%" x2="22%" y2="18%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+              <line x1="50%" y1="50%" x2="25%" y2="82%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+              <line x1="50%" y1="50%" x2="78%" y2="20%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+              <line x1="50%" y1="50%" x2="78%" y2="80%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+            </svg>
 
-        {/* 4 Floating REAL Georeferenced Satellite Observation Callout Cards */}
-        {cards.map((card) => {
-          const isCurrent = selectedYear === card.year;
-          return (
-            <div
-              key={card.id}
-              onClick={() => onSelectYear(card.year)}
-              className={`absolute ${card.pos} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                isCurrent ? 'ring-2 ring-cyan-400 shadow-[0_0_24px_rgba(6,182,212,0.6)]' : 'opacity-90 hover:opacity-100'
-              }`}
-            >
-              <div className="w-40 bg-[#070e24]/95 border border-cyan-500/35 rounded-xl overflow-hidden backdrop-blur-xl p-2 shadow-2xl">
-                <div className="h-22 w-full rounded-lg overflow-hidden bg-[#030612] mb-1.5 relative border border-slate-800/80">
-                  <img 
-                    src={card.thumb} 
-                    alt={card.mission} 
-                    className="w-full h-20 object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
-                    }}
-                  />
-                  <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#040816]/90 text-[8px] text-cyan-300 font-mono border border-cyan-500/20">
-                    {card.res}
-                  </span>
-                  {card.hasZoomBtn && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onZoomToRegion) onZoomToRegion();
-                      }}
-                      className="absolute inset-x-2 bottom-1.5 py-0.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-[9px] font-semibold rounded text-center shadow-lg transition-all"
-                    >
-                      Zoom to region
-                    </button>
-                  )}
+            {cards.map((card) => {
+              const isCurrent = selectedYear === card.year;
+              return (
+                <div
+                  key={card.id}
+                  onClick={() => onSelectYear(card.year)}
+                  className={`absolute ${card.pos} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                    isCurrent ? 'ring-2 ring-cyan-400 shadow-[0_0_24px_rgba(6,182,212,0.6)]' : 'opacity-90 hover:opacity-100'
+                  }`}
+                >
+                  <div className="w-40 bg-[#070e24]/95 border border-cyan-500/35 rounded-xl overflow-hidden backdrop-blur-xl p-2 shadow-2xl">
+                    <div className="h-22 w-full rounded-lg overflow-hidden bg-[#030612] mb-1.5 relative border border-slate-800/80">
+                      <img 
+                        src={card.thumb} 
+                        alt={card.mission} 
+                        className="w-full h-20 object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
+                        }}
+                      />
+                      <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#040816]/90 text-[8px] text-cyan-300 font-mono border border-cyan-500/20">
+                        {card.res}
+                      </span>
+                      {card.hasZoomBtn && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onZoomToRegion) onZoomToRegion();
+                          }}
+                          className="absolute inset-x-2 bottom-1.5 py-0.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-[9px] font-semibold rounded text-center shadow-lg transition-all"
+                        >
+                          Zoom to region
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-white truncate max-w-[85px]">{card.mission}</span>
+                      <span className="text-cyan-400 font-mono font-bold">({card.year})</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-mono truncate mt-0.5">
+                      {card.date}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-semibold text-white truncate max-w-[85px]">{card.mission}</span>
-                  <span className="text-cyan-400 font-mono font-bold">({card.year})</span>
-                </div>
-                <div className="text-[9px] text-slate-400 font-mono truncate mt-0.5">
-                  {card.date}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Top-Right Mission Control Tool Strip (matching Screenshot 2) */}

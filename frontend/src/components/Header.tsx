@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Crosshair, ChevronDown, Check, Loader2, Globe2, Radio, Activity, ShieldCheck } from 'lucide-react';
+import { Search, MapPin, Crosshair, ChevronDown, Check, Loader2, Globe2, Radio, Activity, ShieldCheck, Calendar } from 'lucide-react';
 import { LocationInfo, AppInterfaceMode } from '../types';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   isSearching: boolean;
   interfaceMode: AppInterfaceMode;
   onSwitchMode: (mode: AppInterfaceMode) => void;
+  selectedYear?: number;
+  onSelectYear?: (year: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,7 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   onZoomToRegion,
   isSearching,
   interfaceMode,
-  onSwitchMode
+  onSwitchMode,
+  selectedYear = 2024,
+  onSelectYear
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [typedQuery, setTypedQuery] = useState('');
@@ -131,6 +135,24 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 2. Center Actions & Interface Mode Switcher Pill */}
       <div className="flex items-center space-x-3.5">
+        {/* Date / Observation Period Selector */}
+        {onSelectYear && (
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#070d1e] border border-cyan-500/25 text-xs font-mono">
+            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={selectedYear}
+              onChange={(e) => onSelectYear(parseInt(e.target.value, 10))}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+            >
+              {[1985, 1995, 2005, 2015, 2020, 2024, 2025].map(yr => (
+                <option key={yr} value={yr} className="bg-[#070e24] text-white">
+                  Epoch {yr}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <button
           onClick={onZoomToRegion}
           className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-semibold transition-all shadow-[0_0_15px_rgba(2,132,199,0.35)] border border-sky-400/30"

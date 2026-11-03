@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { RegistrationResult, ChangeDetectionResult, SatelliteScene } from '../types';
 import { runRegistration } from '../services/api';
+import { PipelineVisualizer } from './PipelineVisualizer';
 
 interface CVTechnicalWorkspaceProps {
   changeData: ChangeDetectionResult | null;
@@ -65,6 +66,9 @@ export const CVTechnicalWorkspace: React.FC<CVTechnicalWorkspaceProps> = ({ chan
           </span>
         </div>
       </div>
+
+      {/* End-to-End Image Processing Pipeline */}
+      <PipelineVisualizer />
 
       {/* Control Sliders & Execution */}
       <div className="glass-panel p-4 rounded-xl border border-cyan-500/25 grid grid-cols-4 gap-4 items-center">

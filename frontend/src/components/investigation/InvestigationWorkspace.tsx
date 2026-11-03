@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Radio, MapPin, Search, ChevronDown, Check, Loader2, 
+import {
+  Radio, MapPin, Search, ChevronDown, Check, Loader2,
   Globe2, Activity, RefreshCw, AlertTriangle, Layers,
   BarChart3, GitFork, TrendingUp, FileText, Compass, Sparkles,
   BookOpen, ShieldAlert, Cpu, ExternalLink, Sliders, CheckCircle2,
   Table, Info, ArrowUpRight
 } from 'lucide-react';
 import { LocationInfo, AppInterfaceMode, SatelliteScene } from '../../types';
-import { 
-  StationMeasurement, HeatmapData, SymptomAnalysisResult, 
-  ForecastResponseData, ResearchQueryResponseData, ActivityEventItem, ChatMessage 
+import {
+  StationMeasurement, HeatmapData, SymptomAnalysisResult,
+  ForecastResponseData, ResearchQueryResponseData, ActivityEventItem, ChatMessage
 } from '../../types/investigation';
-import { 
-  fetchEnvironmentalStations, fetchEnvironmentalHeatmap, 
-  postEnvironmentalForecast, streamInvestigatorChat, resetInvestigatorSession 
+import {
+  fetchEnvironmentalStations, fetchEnvironmentalHeatmap,
+  postEnvironmentalForecast, streamInvestigatorChat, resetInvestigatorSession
 } from '../../services/api';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { ChatPanel } from './ChatPanel';
@@ -202,11 +202,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               prev.map((item, idx) =>
                 idx === 0
                   ? {
-                      ...item,
-                      status: 'completed',
-                      title: `Completed: ${toolName}`,
-                      summary: data.result_summary || (data.latency_ms ? `Finished in ${data.latency_ms} ms` : 'Success')
-                    }
+                    ...item,
+                    status: 'completed',
+                    title: `Completed: ${toolName}`,
+                    summary: data.result_summary || (data.latency_ms ? `Finished in ${data.latency_ms} ms` : 'Success')
+                  }
                   : item
               )
             );
@@ -259,10 +259,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   biological_mechanism: h.mechanistic_summary,
                   confidence_tier: h.support_tier,
                   bradford_hill_score: h.evidence_score,
-                  supporting_evidence: (h.supporting_evidence || []).map((ev: any) => 
+                  supporting_evidence: (h.supporting_evidence || []).map((ev: any) =>
                     typeof ev === 'string' ? { type: 'OBSERVATIONAL', claim: ev, source: 'Telemetry' } : ev
                   ),
-                  conflicting_evidence: (h.conflicting_evidence || []).map((ev: any) => 
+                  conflicting_evidence: (h.conflicting_evidence || []).map((ev: any) =>
                     typeof ev === 'string' ? { type: 'OBSERVATIONAL', claim: ev, source: 'Telemetry' } : ev
                   ),
                   alternative_explanations: h.bradford_hill?.alternative_explanations || [],
@@ -546,7 +546,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
   return (
     <div className="flex flex-col h-screen bg-[#030612] text-slate-100 overflow-hidden font-sans">
-      
+
       {/* 1. TOP BAR */}
       <header className="h-16 bg-[#040816]/95 border-b border-cyan-500/20 px-6 flex items-center justify-between backdrop-blur-xl z-30 shadow-2xl shrink-0">
         <div className="flex items-center space-x-5">
@@ -567,7 +567,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
           {/* Selected Location Indicator & Dropdown Search */}
           <div className="relative w-[340px]">
-            <div 
+            <div
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#070d1e]/90 border border-cyan-500/25 hover:border-cyan-400/60 cursor-pointer transition-all shadow-inner"
             >
@@ -624,11 +624,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               <button
                 key={ql.id}
                 onClick={() => handleQuickSelect(ql.id)}
-                className={`px-2 py-0.5 rounded transition-all ${
-                  currentLocation.id.toLowerCase() === ql.id.toLowerCase()
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                    : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
-                }`}
+                className={`px-2 py-0.5 rounded transition-all ${currentLocation.id.toLowerCase() === ql.id.toLowerCase()
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                  : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                  }`}
               >
                 {ql.name}
               </button>

@@ -1,13 +1,13 @@
 export type NavSection = 
-  | 'explore'
-  | 'timeseries'
-  | 'computervision'
+  | 'overview'
+  | 'imagery'
+  | 'spectral'
   | 'landcover'
-  | 'environmental'
-  | 'investigator'
-  | 'evidence'
-  | 'reports'
-  | 'future';
+  | 'historical'
+  | 'changedetection'
+  | 'indicators'
+  | 'computervision'
+  | 'reports';
 
 export interface LocationInfo {
   id: string;
