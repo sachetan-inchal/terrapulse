@@ -34,3 +34,4 @@ for q in test_queries:
             print(f"     Lat: {item['latitude']}, Lon: {item['longitude']} | Category: {item.get('feature_type')} | BBox: {item['bbox']} | UTM: {item['target_utm']}")
     except Exception as e:
         print(f"   Error querying '{q}': {e}")
+

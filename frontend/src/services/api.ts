@@ -1,7 +1,7 @@
-import type { 
-  LocationInfo, SatelliteScene, EnvironmentalAnalysis, 
-  ChangeDetectionResult, RegistrationResult, InvestigationResponse, 
-  FutureScenario 
+import type {
+  LocationInfo, SatelliteScene, EnvironmentalAnalysis,
+  ChangeDetectionResult, RegistrationResult, InvestigationResponse,
+  FutureScenario
 } from '../types';
 
 const API_BASE = (typeof window !== 'undefined' && (window.location.port === '8000' || window.location.pathname.startsWith('/api')))
@@ -182,7 +182,7 @@ export async function fetchEnvironmentalStations(
   const params = new URLSearchParams();
   if (indicator) params.append('indicator', indicator);
   if (location) params.append('location', location);
-  
+
   const res = await fetch(`${API_BASE}/environmental/stations?${params.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch environmental stations: ${res.statusText}`);
   return await res.json();

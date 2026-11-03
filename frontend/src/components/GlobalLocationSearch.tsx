@@ -311,3 +311,4 @@ export const GlobalLocationSearch: React.FC<GlobalLocationSearchProps> = ({
     </div>
   );
 };
+
