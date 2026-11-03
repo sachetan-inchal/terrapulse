@@ -363,6 +363,8 @@ async def investigator_chat_endpoint(req: InvestigatorChatRequest, request: Requ
             for event in global_investigator_agent.process_message(
                 user_message=req.message,
                 session_id=req.session_id,
+                location=req.location,
+                indicator=req.indicator
             ):
                 if await request.is_disconnected():
                     break

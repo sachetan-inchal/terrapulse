@@ -267,12 +267,14 @@ export async function streamInvestigatorChat(
   message: string,
   sessionId: string,
   onEvent: (eventType: string, data: any) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  location?: string,
+  indicator?: string
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/investigator/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, session_id: sessionId }),
+    body: JSON.stringify({ message, session_id: sessionId, location, indicator }),
     signal
   });
 

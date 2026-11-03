@@ -23,10 +23,10 @@ import { GlobalLocationSearch } from '../GlobalLocationSearch';
 
 type RightPanelTab = 
   | 'parameters' 
+  | 'spatial'
   | 'hypotheses' 
   | 'evidence' 
   | 'forecasting' 
-  | 'spatial' 
   | 'reports';
 
 interface InvestigationWorkspaceProps {
@@ -293,7 +293,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             setMessages((prev) => [...prev, errMsg]);
           }
         },
-        controller.signal
+        controller.signal,
+        currentLocation.name
       );
     } catch (err: any) {
       if (err.name !== 'AbortError') {
@@ -642,7 +643,14 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             isInvestigating={isInvestigating}
             onSendMessage={handleSendMessage}
             onResetSession={handleResetSession}
+            onStopGeneration={() => {
+              if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                setIsInvestigating(false);
+              }
+            }}
             sessionId={sessionId}
+            currentLocationName={currentLocation.name}
           />
         </div>
 
@@ -676,12 +684,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           {/* Right Panel Sub-Navigation Tabs */}
           <div className="border-b border-cyan-500/20 bg-[#060e22] px-2 py-1.5 flex items-center gap-1 overflow-x-auto text-[11px] font-mono shrink-0">
             {[
-              { id: 'parameters', label: 'Parameters', icon: <BarChart3 className="w-3 h-3" /> },
-              { id: 'hypotheses', label: 'Hypotheses', icon: <GitFork className="w-3 h-3" /> },
-              { id: 'evidence', label: 'Evidence', icon: <BookOpen className="w-3 h-3" /> },
-              { id: 'forecasting', label: 'Forecasting', icon: <TrendingUp className="w-3 h-3" /> },
-              { id: 'spatial', label: 'Spatial', icon: <Compass className="w-3 h-3" /> },
-              { id: 'reports', label: 'Reports', icon: <FileText className="w-3 h-3" /> }
+              { id: 'parameters', label: '1. Parameters', icon: <BarChart3 className="w-3 h-3" /> },
+              { id: 'spatial', label: '2. Spatial', icon: <Compass className="w-3 h-3" /> },
+              { id: 'hypotheses', label: '3. Hypotheses', icon: <GitFork className="w-3 h-3" /> },
+              { id: 'evidence', label: '4. Evidence', icon: <BookOpen className="w-3 h-3" /> },
+              { id: 'forecasting', label: '5. Forecasting', icon: <TrendingUp className="w-3 h-3" /> },
+              { id: 'reports', label: '6. Reports', icon: <FileText className="w-3 h-3" /> }
             ].map(tab => (
               <button
                 key={tab.id}
