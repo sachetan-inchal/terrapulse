@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { GlobeMapStage } from './components/GlobeMapStage';
@@ -11,126 +11,79 @@ import { TimeSeriesWorkspace } from './components/TimeSeriesWorkspace';
 import { LandCoverWorkspace } from './components/LandCoverWorkspace';
 import { FutureScenariosWorkspace } from './components/FutureScenariosWorkspace';
 import { ReportsWorkspace } from './components/ReportsWorkspace';
+import { EarthObservationExplorer } from './components/EarthObservationExplorer';
+import { InvestigationWorkspace } from './components/investigation/InvestigationWorkspace';
+import { NavSection } from './types';
+import { GeoProvider, useGeoContext } from './context/GeoContext';
 
-import { 
-  NavSection, LocationInfo, SatelliteScene, 
-  EnvironmentalAnalysis, ChangeDetectionResult, 
-  InvestigationResponse, LayerState, DataSourceState 
-} from './types';
-import { 
-  fetchLocations, fetchScenes, fetchAnalysis, 
-  fetchChangeDetection, fetchInvestigation, geocodeLocation 
-} from './services/api';
+const MainAppContent: React.FC = () => {
+  const {
+    currentLocation,
+    availableLocations,
+    scenes,
+    chronologicalScenes,
+    selectedScene,
+    selectedYear,
+    georeferencedOverlayUrl,
+    overlayBounds,
+    measurements,
+    analysis,
+    changeData,
+    investigation,
+    investigating,
+    isSearching,
+    interfaceMode,
+    activeTimelineView,
+    layers,
+    dataSources,
+    selectLocation,
+    searchLocation,
+    selectScene,
+    selectYear,
+    runInvestigationQuery,
+    toggleLayer,
+    toggleDataSource,
+    setInterfaceMode,
+    setActiveTimelineView,
+    zoomToRegion
+  } = useGeoContext();
 
-export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavSection>('explore');
-  const [locations, setLocations] = useState<LocationInfo[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<LocationInfo>({
-    id: "bengaluru",
-    name: "Bengaluru, Karnataka",
-    country: "India",
-    latitude: 12.9716,
-    longitude: 77.5946,
-    bbox: [77.45, 12.85, 77.75, 13.10],
-    default_crs: "EPSG:4326",
-    target_utm: "EPSG:32643",
-    description: "High-growth global IT hub undergoing intensive multi-decade urban expansion and green canopy reduction."
-  });
-
-  const [scenes, setScenes] = useState<SatelliteScene[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number>(2024);
-  const [analysis, setAnalysis] = useState<EnvironmentalAnalysis | null>(null);
-  const [changeData, setChangeData] = useState<ChangeDetectionResult | null>(null);
-  const [investigation, setInvestigation] = useState<InvestigationResponse | null>(null);
-  const [investigating, setInvestigating] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [activeTimelineView, setActiveTimelineView] = useState<'historical' | 'current' | 'future'>('current');
   const [is3DMode, setIs3DMode] = useState(true);
 
-  const [layers, setLayers] = useState<LayerState>({
-    landCover: true,
-    ndvi: true,
-    waterIndex: false,
-    urbanHeat: false,
-    changeDetection: true,
-    boundaries: true
-  });
+  // MODE A: Dedicated AI Environmental Investigator Workspace
+  if (interfaceMode === 'investigator') {
+    return (
+      <InvestigationWorkspace
+        currentLocation={currentLocation}
+        availableLocations={availableLocations}
+        onSelectLocation={selectLocation}
+        onSearchLocation={searchLocation}
+        onSwitchMode={setInterfaceMode}
+        scenes={scenes}
+        selectedScene={selectedScene}
+        onSelectScene={selectScene}
+      />
+    );
+  }
 
-  const [dataSources, setDataSources] = useState<DataSourceState>({
-    landsat: true,
-    sentinel: true,
-    modis: false,
-    planet: true,
-    osm: true,
-    other: false
-  });
-
-  // Load initial datasets
-  useEffect(() => {
-    fetchLocations().then(locs => {
-      setLocations(locs);
-      if (locs.length > 0) setCurrentLocation(locs[0]);
-    }).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    fetchScenes(currentLocation.id).then(setScenes).catch(console.error);
-    fetchAnalysis(currentLocation.id, selectedYear).then(setAnalysis).catch(console.error);
-    fetchChangeDetection(currentLocation.id, 1985, selectedYear).then(setChangeData).catch(console.error);
-    fetchInvestigation("Why did this region change?", currentLocation.id).then(setInvestigation).catch(console.error);
-  }, [currentLocation, selectedYear]);
-
-  const handleSearchLocation = async (query: string) => {
-    setIsSearching(true);
-    try {
-      const geocoded = await geocodeLocation(query);
-      if (geocoded) {
-        setCurrentLocation(geocoded);
-        // Include new queried location in available list if not present
-        setLocations(prev => {
-          if (!prev.find(l => l.id === geocoded.id)) {
-            return [geocoded, ...prev];
-          }
-          return prev;
-        });
-      }
-    } catch (err) {
-      console.error('Failed to geocode location:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleRunInvestigation = async (query: string) => {
-    setInvestigating(true);
-    try {
-      const res = await fetchInvestigation(query, currentLocation.id);
-      setInvestigation(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setInvestigating(false);
-    }
-  };
-
-  const handleLayerToggle = (key: keyof LayerState) => {
-    setLayers(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleDataSourceToggle = (key: keyof DataSourceState) => {
-    setDataSources(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
+  // MODE B: Full Earth Observation Explorer (Preserving original 3D globe, timeline, pipeline, and tools)
   return (
     <div className="flex h-screen bg-space-950 text-slate-100 overflow-hidden font-sans">
       {/* 1. Left Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (tab === 'investigator') {
+            setInterfaceMode('investigator');
+          } else {
+            setActiveTab(tab);
+          }
+        }}
         layers={layers}
-        onLayerToggle={handleLayerToggle}
+        onLayerToggle={toggleLayer}
         dataSources={dataSources}
-        onDataSourceToggle={handleDataSourceToggle}
+        onDataSourceToggle={toggleDataSource}
       />
 
       {/* 2. Main Center Workspace */}
@@ -138,11 +91,13 @@ export const App: React.FC = () => {
         {/* Top Header */}
         <Header
           currentLocation={currentLocation}
-          availableLocations={locations}
-          onSelectLocation={setCurrentLocation}
-          onSearchLocation={handleSearchLocation}
-          onZoomToRegion={() => setSelectedYear(2024)}
+          availableLocations={availableLocations}
+          onSelectLocation={selectLocation}
+          onSearchLocation={searchLocation}
+          onZoomToRegion={zoomToRegion}
           isSearching={isSearching}
+          interfaceMode={interfaceMode}
+          onSwitchMode={setInterfaceMode}
         />
 
         {/* Dynamic Center Stage Content */}
@@ -154,7 +109,7 @@ export const App: React.FC = () => {
                 location={currentLocation}
                 scenes={scenes}
                 selectedYear={selectedYear}
-                onSelectYear={setSelectedYear}
+                onSelectYear={selectYear}
                 is3DMode={is3DMode}
                 onToggle3D={() => setIs3DMode(!is3DMode)}
               />
@@ -168,7 +123,7 @@ export const App: React.FC = () => {
               {/* Bottom Multi-Decade Timeline Scrubber */}
               <TimelineScrubber
                 currentYear={selectedYear}
-                onYearChange={setSelectedYear}
+                onYearChange={selectYear}
                 analysis={analysis || undefined}
                 activeTimelineView={activeTimelineView}
                 onViewChange={setActiveTimelineView}
@@ -203,7 +158,7 @@ export const App: React.FC = () => {
               </div>
               <AIInvestigatorPanel
                 investigation={investigation}
-                onRunQuery={handleRunInvestigation}
+                onRunQuery={runInvestigationQuery}
                 isLoading={investigating}
               />
             </div>
@@ -211,15 +166,23 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Persistent Right-Side AI Investigator & Evidence Graph Panel */}
+      {/* 3. Persistent Right-Side AI Investigator & Evidence Graph Panel (in Explorer mode) */}
       {activeTab === 'explore' && (
         <AIInvestigatorPanel
           investigation={investigation}
-          onRunQuery={handleRunInvestigation}
+          onRunQuery={runInvestigationQuery}
           isLoading={investigating}
         />
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <GeoProvider>
+      <MainAppContent />
+    </GeoProvider>
   );
 };
 

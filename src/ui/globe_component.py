@@ -2,12 +2,12 @@
 
 Renders an authentic, interactive 3D WebGL spherical Earth in space with:
 - Three.js WebGL orbital globe with atmosphere glow, starfield, and rotation controls
-- Exact UV-matching lat/lon to Three.js Cartesian coordinate mapping:
-  camera and markers accurately focus on target coordinates (e.g., Bengaluru in Southern India)
-- Spherical coordinate patch projection: STICKS the stitched satellite mosaic directly
+- Exact UV-matching lat/lon to Three.js Cartesian coordinate mapping
+- Display of actual geographic scene footprints and 4-quadrant tiles on the globe
+- Spherical coordinate patch projection: STICKS the satellite mosaic/scene directly
   onto the curvature of the 3D Earth at its exact geographic bounding box (lat/lon)
-- Smooth animated camera fly-in from orbital space down to the regional sticker
-- Top-left Target HUD with resolved place name, coordinates, and instant fly-to buttons
+- Smooth animated camera fly-in from orbital space down to the regional observation
+- Clean Light-Theme glassmorphism HUD with resolved place name, coordinates, and instant fly-to buttons
 - Top-right HUD controls (Zoom in, Zoom out, Compass, Recenter)
 """
 
@@ -48,11 +48,13 @@ def build_3d_globe_html(
     lon: float,
     bbox: List[float],  # [min_lon, min_lat, max_lon, max_lat]
     stitched_image: Any,  # ndarray or PIL Image or filepath
+    scenes: Optional[List[Dict[str, Any]]] = None,
+    active_scene_id: Optional[str] = "mosaic",
     height_px: int = 560
 ) -> str:
     """
     Constructs a standalone, responsive WebGL 3D Globe HTML string with Three.js.
-    Accurately navigates and zooms to target coordinates on Southern India / Bengaluru.
+    Accurately navigates and zooms to target coordinates and displays true scene footprints.
     """
     stitched_b64 = _image_to_base64_jpeg(stitched_image)
     if not stitched_b64:
@@ -60,12 +62,28 @@ def build_3d_globe_html(
 
     min_lon, min_lat, max_lon, max_lat = bbox[0], bbox[1], bbox[2], bbox[3]
 
+    scenes_data = []
+    if scenes:
+        for sc in scenes[:8]:
+            sc_bbox = sc.get("bbox", [])
+            if len(sc_bbox) == 4:
+                scenes_data.append({
+                    "id": sc.get("id", ""),
+                    "date": sc.get("date", ""),
+                    "bbox": sc_bbox,
+                    "isSelected": (sc.get("id") == active_scene_id),
+                    "isQuadrant": sc.get("is_quadrant", False),
+                    "quadrantLabel": sc.get("quadrant_label", "")
+                })
+
     payload_json = json.dumps({
         "targetName": target_name,
         "lat": lat,
         "lon": lon,
         "bbox": [min_lon, min_lat, max_lon, max_lat],
-        "stitchedImage": stitched_b64
+        "stitchedImage": stitched_b64,
+        "scenes": scenes_data,
+        "activeSceneId": active_scene_id
     })
 
     html_content = f"""
@@ -76,10 +94,10 @@ def build_3d_globe_html(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body, html {{ width: 100%; height: 100%; overflow: hidden; background: #030712; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+    body, html {{ width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
     #canvas-container {{ width: 100%; height: 100%; position: relative; }}
     
-    /* Aerospace Dark Glassmorphism Overlay */
+    /* Clean Light Glassmorphism Overlays */
     .hud-overlay {{
         position: absolute;
         pointer-events: none;
@@ -90,31 +108,32 @@ def build_3d_globe_html(
     .target-card {{
         top: 14px;
         left: 16px;
-        background: rgba(11, 19, 43, 0.88);
-        border: 1px solid rgba(0, 240, 255, 0.45);
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #bfdbfe;
         border-radius: 10px;
-        padding: 10px 14px;
+        padding: 12px 16px;
         backdrop-filter: blur(12px);
-        box-shadow: 0 0 25px rgba(0, 240, 255, 0.2);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         pointer-events: auto;
-        color: #f1f5f9;
+        color: #0f172a;
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        max-width: 320px;
+        gap: 5px;
+        max-width: 330px;
     }}
     .target-title {{
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         font-weight: 700;
-        color: #fff;
+        color: #0f172a;
         display: flex;
         align-items: center;
         gap: 6px;
     }}
     .target-coords {{
-        font-family: monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-size: 0.78rem;
-        color: #38bdf8;
+        color: #2563eb;
+        font-weight: 600;
     }}
     .target-btn-group {{
         display: flex;
@@ -122,21 +141,21 @@ def build_3d_globe_html(
         margin-top: 4px;
     }}
     .action-btn {{
-        background: rgba(0, 240, 255, 0.18);
-        border: 1px solid rgba(0, 240, 255, 0.6);
-        color: #00f0ff;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
         padding: 6px 12px;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
         text-align: center;
     }}
     .action-btn:hover {{
-        background: rgba(0, 240, 255, 0.4);
-        box-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
-        color: #fff;
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #1d4ed8;
     }}
     
     /* Top Right Floating HUD Controls */
@@ -151,48 +170,49 @@ def build_3d_globe_html(
     .hud-btn {{
         width: 34px;
         height: 34px;
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid rgba(0, 240, 255, 0.35);
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #cbd5e1;
         border-radius: 6px;
-        color: #e2e8f0;
+        color: #334155;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1rem;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }}
     .hud-btn:hover {{
-        background: rgba(0, 240, 255, 0.3);
-        border-color: #00f0ff;
-        color: #00f0ff;
-        box-shadow: 0 0 10px rgba(0, 240, 255, 0.45);
+        background: #eff6ff;
+        border-color: #2563eb;
+        color: #2563eb;
     }}
     
-    /* Bottom Timeline Strip */
+    /* Bottom Status Strip */
     .timeline-strip {{
         bottom: 12px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid rgba(0, 240, 255, 0.3);
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #cbd5e1;
         border-radius: 30px;
-        padding: 5px 18px;
+        padding: 6px 20px;
         display: flex;
         align-items: center;
         gap: 12px;
         backdrop-filter: blur(10px);
-        font-family: monospace;
+        font-family: 'JetBrains Mono', monospace;
         font-size: 0.72rem;
-        color: #94a3b8;
+        color: #334155;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         pointer-events: auto;
     }}
     .timeline-dot {{
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #34d399;
-        box-shadow: 0 0 8px #34d399;
+        background: #059669;
+        box-shadow: 0 0 6px #059669;
         animation: pulse 1.8s infinite;
     }}
     @keyframes pulse {{
@@ -206,17 +226,17 @@ def build_3d_globe_html(
 <body>
 
 <div id="canvas-container">
-    <!-- Top Left Search / Region Info -->
+    <!-- Top Left Target / Region Info -->
     <div class="hud-overlay target-card">
         <div class="target-title">
             <span>📍</span> <span id="ui-target-name">Target Region</span>
         </div>
         <div class="target-coords" id="ui-coords">--° N, --° E</div>
-        <div style="font-size: 0.7rem; color: #a5f3fc;">
-            Camera Focused on Target Coordinates
+        <div style="font-size: 0.70rem; color: #64748b;">
+            Georeferenced Satellite Projection Clamped to Surface
         </div>
         <div class="target-btn-group">
-            <button class="action-btn" id="btn-zoom-region">🔍 Zoom to Region</button>
+            <button class="action-btn" id="btn-zoom-region">🔍 Zoom to AOI</button>
             <button class="action-btn" id="btn-zoom-orbit">🌍 Full Orbit</button>
         </div>
     </div>
@@ -232,9 +252,9 @@ def build_3d_globe_html(
     <!-- Bottom Status -->
     <div class="hud-overlay timeline-strip">
         <div class="timeline-dot"></div>
-        <span>3D SPHERICAL SURFACE PROJECTION</span>
-        <span style="color: #00f0ff;">|</span>
-        <span id="ui-bbox-info">BBox: [...]</span>
+        <span style="font-weight: 600;">3D SPHERICAL SURFACE PROJECTION</span>
+        <span style="color: #cbd5e1;">|</span>
+        <span id="ui-bbox-info">AOI: [...]</span>
     </div>
 </div>
 
@@ -243,7 +263,7 @@ def build_3d_globe_html(
     
     document.getElementById("ui-target-name").innerText = DATA.targetName;
     document.getElementById("ui-coords").innerText = `${{DATA.lat.toFixed(4)}}° N, ${{DATA.lon.toFixed(4)}}° E`;
-    document.getElementById("ui-bbox-info").innerText = `BBox: [${{DATA.bbox[0].toFixed(2)}}, ${{DATA.bbox[1].toFixed(2)}}, ${{DATA.bbox[2].toFixed(2)}}, ${{DATA.bbox[3].toFixed(2)}}]`;
+    document.getElementById("ui-bbox-info").innerText = `AOI: [${{DATA.bbox[0].toFixed(2)}}, ${{DATA.bbox[1].toFixed(2)}}, ${{DATA.bbox[2].toFixed(2)}}, ${{DATA.bbox[3].toFixed(2)}}]`;
 
     const container = document.getElementById("canvas-container");
 
@@ -265,10 +285,10 @@ def build_3d_globe_html(
     controls.rotateSpeed = 0.6;
 
     // Ambient & Directional Lighting
-    const ambientLight = new THREE.AmbientLight(0x334155, 1.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.4);
     sunLight.position.set(400, 200, 300);
     scene.add(sunLight);
 
@@ -276,7 +296,7 @@ def build_3d_globe_html(
     // 2. STARFIELD BACKGROUND
     // =========================================================================
     const starsGeom = new THREE.BufferGeometry();
-    const starCount = 1200;
+    const starCount = 1000;
     const starPos = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount * 3; i += 3) {{
         starPos[i] = (Math.random() - 0.5) * 1200;
@@ -284,7 +304,7 @@ def build_3d_globe_html(
         starPos[i+2] = (Math.random() - 0.5) * 1200;
     }}
     starsGeom.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-    const starsMat = new THREE.PointsMaterial({{ color: 0x94a3b8, size: 1.2, transparent: true, opacity: 0.7 }});
+    const starsMat = new THREE.PointsMaterial({{ color: 0x94a3b8, size: 1.0, transparent: true, opacity: 0.6 }});
     const starField = new THREE.Points(starsGeom, starsMat);
     scene.add(starField);
 
@@ -302,18 +322,18 @@ def build_3d_globe_html(
 
     const globeMat = new THREE.MeshStandardMaterial({{
         map: earthTexture,
-        roughness: 0.8,
-        metalness: 0.1
+        roughness: 0.85,
+        metalness: 0.05
     }});
     const globeMesh = new THREE.Mesh(globeGeom, globeMat);
     scene.add(globeMesh);
 
-    // Atmosphere Glow Layer
-    const atmosGeom = new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, 64, 64);
+    // Subtle Atmosphere Glow Layer
+    const atmosGeom = new THREE.SphereGeometry(GLOBE_RADIUS * 1.015, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({{
-        color: 0x00f0ff,
+        color: 0x38bdf8,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.12,
         side: THREE.BackSide
     }});
     const atmosMesh = new THREE.Mesh(atmosGeom, atmosMat);
@@ -322,11 +342,6 @@ def build_3d_globe_html(
     // =========================================================================
     // 4. PRECISE COORDINATE MATH: LAT/LON TO THREE.JS SPHERE VERTEX
     // =========================================================================
-    // Aligns 1-to-1 with Three.js SphereGeometry equirectangular UV mapping:
-    // u = (lon + 180) / 360, v = (90 - lat) / 180
-    // vertex.x = -radius * cos(u * 2PI) * sin(v * PI)
-    // vertex.y =  radius * cos(v * PI)
-    // vertex.z =  radius * sin(u * 2PI) * sin(v * PI)
     function latLonToXYZ(lat, lon, radius) {{
         const u = (lon + 180.0) / 360.0;
         const v = (90.0 - lat) / 180.0;
@@ -338,35 +353,35 @@ def build_3d_globe_html(
         return new THREE.Vector3(x, y, z);
     }}
 
-    // Target Location Pin Point (Bengaluru / User Coordinates)
+    // Target Location Marker (Pin at Coordinates)
     const targetPos = latLonToXYZ(DATA.lat, DATA.lon, GLOBE_RADIUS);
     const targetNorm = targetPos.clone().normalize();
 
     // Red Pulsing Target Pin
     const markerGeom = new THREE.SphereGeometry(1.2, 16, 16);
-    const markerMat = new THREE.MeshBasicMaterial({{ color: 0xf43f5e }});
+    const markerMat = new THREE.MeshBasicMaterial({{ color: 0xef4444 }});
     const markerMesh = new THREE.Mesh(markerGeom, markerMat);
     markerMesh.position.copy(latLonToXYZ(DATA.lat, DATA.lon, GLOBE_RADIUS * 1.006));
     scene.add(markerMesh);
 
     // Concentric Ring Beacon
     const ringGeom = new THREE.RingGeometry(1.5, 2.5, 32);
-    const ringMat = new THREE.MeshBasicMaterial({{ color: 0x00f0ff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }});
+    const ringMat = new THREE.MeshBasicMaterial({{ color: 0x2563eb, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }});
     const ringMesh = new THREE.Mesh(ringGeom, ringMat);
     ringMesh.position.copy(latLonToXYZ(DATA.lat, DATA.lon, GLOBE_RADIUS * 1.008));
     ringMesh.lookAt(targetPos.clone().multiplyScalar(2));
     scene.add(ringMesh);
 
-    // Vertical Laser Beacon Beam shooting into space
-    const beamGeom = new THREE.CylinderGeometry(0.25, 0.25, 25, 8);
-    const beamMat = new THREE.MeshBasicMaterial({{ color: 0x00f0ff, transparent: true, opacity: 0.7 }});
+    // Vertical Laser Beacon Beam
+    const beamGeom = new THREE.CylinderGeometry(0.2, 0.2, 22, 8);
+    const beamMat = new THREE.MeshBasicMaterial({{ color: 0x3b82f6, transparent: true, opacity: 0.6 }});
     const beamMesh = new THREE.Mesh(beamGeom, beamMat);
-    beamMesh.position.copy(latLonToXYZ(DATA.lat, DATA.lon, GLOBE_RADIUS + 12.5));
+    beamMesh.position.copy(latLonToXYZ(DATA.lat, DATA.lon, GLOBE_RADIUS + 11.0));
     beamMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), targetNorm);
     scene.add(beamMesh);
 
     // =========================================================================
-    // 5. STICK OUR STITCHED IMAGE DIRECTLY ONTO THE GLOBE AS A 3D CURVED STICKER
+    // 5. STICK OUR SATELLITE IMAGE DIRECTLY ONTO THE GLOBE CURVATURE
     // =========================================================================
     function createStitchedStickerMesh(minLon, minLat, maxLon, maxLat, radius, imageB64) {{
         const segments = 24;
@@ -426,26 +441,54 @@ def build_3d_globe_html(
     );
     scene.add(stickerMesh);
 
-    // Glowing Neon Boundary Outline around the stitched image
-    const outlinePts = [
+    // AOI Boundary Outline
+    const aoiPts = [
         latLonToXYZ(DATA.bbox[1], DATA.bbox[0], GLOBE_RADIUS * 1.007),
         latLonToXYZ(DATA.bbox[1], DATA.bbox[2], GLOBE_RADIUS * 1.007),
         latLonToXYZ(DATA.bbox[3], DATA.bbox[2], GLOBE_RADIUS * 1.007),
         latLonToXYZ(DATA.bbox[3], DATA.bbox[0], GLOBE_RADIUS * 1.007),
         latLonToXYZ(DATA.bbox[1], DATA.bbox[0], GLOBE_RADIUS * 1.007)
     ];
-    const outlineGeom = new THREE.BufferGeometry().setFromPoints(outlinePts);
-    const outlineMat = new THREE.LineBasicMaterial({{ color: 0x00f0ff, linewidth: 3 }});
-    const outlineLine = new THREE.Line(outlineGeom, outlineMat);
-    scene.add(outlineLine);
+    const aoiGeom = new THREE.BufferGeometry().setFromPoints(aoiPts);
+    const aoiMat = new THREE.LineBasicMaterial({{ color: 0x2563eb, linewidth: 3 }});
+    const aoiLine = new THREE.Line(aoiGeom, aoiMat);
+    scene.add(aoiLine);
 
     // =========================================================================
-    // 6. INITIAL CAMERA ALIGNMENT: DIRECTLY FACING BENGALURU / TARGET
+    // 5b. SCENE FOOTPRINT OUTLINES (GEOGRAPHIC SYNCHRONIZATION)
+    // =========================================================================
+    if (DATA.scenes && DATA.scenes.length > 0) {{
+        const quadColors = [0x3b82f6, 0x10b981, 0xf59e0b, 0x8b5cf6];
+        DATA.scenes.forEach((sc, idx) => {{
+            const b = sc.bbox;
+            if (b && b.length === 4) {{
+                const fPts = [
+                    latLonToXYZ(b[1], b[0], GLOBE_RADIUS * 1.005),
+                    latLonToXYZ(b[1], b[2], GLOBE_RADIUS * 1.005),
+                    latLonToXYZ(b[3], b[2], GLOBE_RADIUS * 1.005),
+                    latLonToXYZ(b[3], b[0], GLOBE_RADIUS * 1.005),
+                    latLonToXYZ(b[1], b[0], GLOBE_RADIUS * 1.005)
+                ];
+                const fGeom = new THREE.BufferGeometry().setFromPoints(fPts);
+                let col = 0x64748b;
+                if (sc.isSelected) {{
+                    col = 0xf59e0b; // Gold for active selection
+                }} else if (sc.isQuadrant) {{
+                    col = quadColors[idx % quadColors.length];
+                }}
+                const fMat = new THREE.LineBasicMaterial({{ color: col, linewidth: sc.isSelected ? 3 : 1 }});
+                const fLine = new THREE.Line(fGeom, fMat);
+                scene.add(fLine);
+            }}
+        }});
+    }}
+
+    // =========================================================================
+    // 6. INITIAL CAMERA ALIGNMENT: DIRECTLY FACING TARGET COORDINATES
     // =========================================================================
     const ORBIT_DISTANCE = 250.0;
     const REGION_DISTANCE = 114.0;
 
-    // Start with camera positioned along the radial vector of the target location
     camera.position.copy(targetNorm.clone().multiplyScalar(ORBIT_DISTANCE));
     camera.lookAt(targetPos);
     controls.target.copy(new THREE.Vector3(0, 0, 0));
@@ -470,7 +513,6 @@ def build_3d_globe_html(
         isAnimating = true;
     }}
 
-    // Auto-fly down to region on load after brief delay
     setTimeout(() => {{
         flyTo(REGION_DISTANCE, targetPos);
     }}, 400);
@@ -504,9 +546,6 @@ def build_3d_globe_html(
     // =========================================================================
     // 8. RENDER LOOP
     // =========================================================================
-    let ringScale = 1.0;
-    let ringGrowing = true;
-
     function animate() {{
         requestAnimationFrame(animate);
 
@@ -524,16 +563,6 @@ def build_3d_globe_html(
             controls.update();
         }}
 
-        if (ringGrowing) {{
-            ringScale += 0.012;
-            if (ringScale > 1.6) ringGrowing = false;
-        }} else {{
-            ringScale -= 0.012;
-            if (ringScale < 0.9) ringGrowing = true;
-        }}
-        ringMesh.scale.set(ringScale, ringScale, 1.0);
-        ringMat.opacity = Math.max(0.2, 1.0 - (ringScale - 0.9) / 0.7);
-
         renderer.render(scene, camera);
     }}
     animate();
@@ -544,8 +573,7 @@ def build_3d_globe_html(
         renderer.setSize(container.clientWidth, container.clientHeight);
     }});
 </script>
-
 </body>
 </html>
-    """
+"""
     return html_content

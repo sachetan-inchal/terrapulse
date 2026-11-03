@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+torch = pytest.importorskip("torch", reason="PyTorch is not installed in this Python environment")
 
 from src.data.eurosat_dataset import SPLITS_PATH, EuroSATSplit
 from src.data.levircd_dataset import LevirCDPairs

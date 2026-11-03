@@ -1,7 +1,10 @@
 """Computer Vision, Feature Registration, and Mosaicking Engine."""
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 from PIL import Image
 
@@ -17,6 +20,20 @@ def compute_sift_registration(
     """
     SIFT + FLANN + RANSAC homography estimation with safety verification gates.
     """
+    if cv2 is None:
+        return {
+            "status": "OPENCV_UNAVAILABLE",
+            "method": "SIFT + RANSAC",
+            "keypoints_detected": 0,
+            "matches_found": 0,
+            "inliers_count": 0,
+            "inlier_ratio_pct": 0.0,
+            "reprojection_error_px": 0.0,
+            "homography_matrix": None,
+            "confidence": "LOW",
+            "warning": "OpenCV is initializing or not available."
+        }
+
     gray1 = cv2.cvtColor(img1_arr, cv2.COLOR_RGB2GRAY) if img1_arr.ndim == 3 else img1_arr
     gray2 = cv2.cvtColor(img2_arr, cv2.COLOR_RGB2GRAY) if img2_arr.ndim == 3 else img2_arr
 

@@ -1,0 +1,42 @@
+name: docs-build
+on:
+    pull_request:
+        branches:
+            - main
+            - master
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: "3.12"
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt -r requirements_dev.txt
+                  pip install -e ".[dev]"
+            - name: PKG-TEST
+              run: pytest tests/ -v
+            - name: Build docs
+              run: mkdocs build --strict
+            - name: Deploy to Netlify
+              uses: nwtgck/actions-netlify@v4.0
+              with:
+                  publish-dir: "./site"
+                  production-branch: main
+
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  deploy-message: "Deploy from GitHub Actions"
+                  enable-pull-request-comment: true
+                  enable-commit-comment: false
+                  overwrites-pull-request-comment: true
+              env:
+                  NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+                  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+              timeout-minutes: 10

@@ -1,16 +1,31 @@
+# Virtual Environments & Caches
 .venv/
-__pycache__/
+**/.venv/
+**/__pycache__/
 *.pyc
+**/.pytest_cache/
+cache/
+scratch/
+
+# Large binaries & geospatial rasters
+*.zip
+*.tar.gz
+*.tif
+*.tiff
+checkpoints/*.pt
+checkpoints/*.pth
+
+# Frontend build & packages
+frontend/node_modules/
+frontend/dist/
+**/node_modules/
+
+# Python packaging & OS
+*.egg-info/
+.DS_Store
+._*
+
+# Data demo preservation
 /data/
 !data/demo/
 !data/demo/**
-checkpoints/*.pt
-checkpoints/*.pth
-.DS_Store
-._*
-*.egg-info/
-.pytest_cache/
-cache/
-frontend/node_modules/
-frontend/dist/
-

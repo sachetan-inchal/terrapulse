@@ -114,7 +114,6 @@ class ObservationData:
     green: Optional[np.ndarray] = None  # (H, W) float32
     blue: Optional[np.ndarray] = None  # (H, W) float32
     valid_mask: Optional[np.ndarray] = None  # (H, W) uint8 255/0
-    platform: str = "Sentinel-2 MSI"
     transform: Any = None
     is_composite: bool = False
     source_scenes: List[str] = field(default_factory=list)

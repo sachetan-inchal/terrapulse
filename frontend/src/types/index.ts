@@ -33,6 +33,7 @@ export interface SatelliteScene {
   preview_url?: string;
   crs: string;
   bbox: [number, number, number, number];
+  footprint?: any;
 }
 
 export interface LandCoverClass {
@@ -160,4 +161,22 @@ export interface DataSourceState {
   planet: boolean;
   osm: boolean;
   other: boolean;
+}
+
+export type AppInterfaceMode = 'explorer' | 'investigator';
+
+export interface RelatedImageItem {
+  id: string;
+  mission: string;
+  date: string;
+  coordinates: string;
+  thumbnailUrl: string;
+  resolution: string;
+  badge?: string;
+}
+
+export interface ObservationAssetCounts {
+  satelliteImages: number;
+  historicalPhotos: number;
+  mapsGisLayers: number;
 }

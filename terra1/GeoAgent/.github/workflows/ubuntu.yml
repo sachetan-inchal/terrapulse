@@ -1,0 +1,37 @@
+on:
+    push:
+        branches:
+            - main
+            - master
+    pull_request:
+        branches:
+            - main
+            - master
+
+name: Linux build
+jobs:
+    py-check:
+        runs-on: ${{ matrix.config.os }}
+        name: ${{ matrix.config.os }} (${{ matrix.config.py }})
+        strategy:
+            fail-fast: false
+            matrix:
+                config:
+                    - { os: ubuntu-latest, py: "3.11" }
+                    - { os: ubuntu-latest, py: "3.12" }
+                    - { os: ubuntu-latest, py: "3.13" }
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v7
+            - name: Setup Python
+              uses: actions/setup-python@v7
+              with:
+                  python-version: ${{ matrix.config.py }}
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install -e ".[dev]"
+            - name: PKG-TEST
+              run: |
+                  pytest tests/ -v

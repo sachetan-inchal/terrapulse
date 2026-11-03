@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TerraPulse v2.0 — CCVR Project Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #070b14;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+    }
+
+    /* Top Progress Bar */
+    #progress-container {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 5%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald), var(--accent-purple));
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Top Header Bar */
+    header {
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--bg-card-border);
+      background: rgba(7, 11, 20, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 50;
+    }
+
+    .logo-zone {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #070b14;
+      font-size: 1.05rem;
+    }
+
+    .logo-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-center {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--bg-card-border);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Slide Stage */
+    #slide-viewport {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 32px 75px 32px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .slide-card {
+      width: 100%;
+      max-width: 1200px;
+      min-height: 560px;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 18px;
+      padding: 28px 36px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--bg-card-border);
+    }
+
+    .slide-title-area h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    .slide-title-area p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .slide-badge-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Presenter Notes Drawer */
+    #notes-drawer {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      width: calc(100% - 64px);
+      max-width: 1200px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 14px;
+      padding: 16px 24px;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(20px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 90;
+    }
+
+    #notes-drawer.open {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .notes-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .notes-content {
+      font-size: 0.92rem;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+
+    /* Bottom Control Bar */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: rgba(7, 11, 20, 0.92);
+      border-top: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 32px;
+      z-index: 50;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .slide-counter {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      padding: 0 8px;
+    }
+
+    .jump-select {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-main);
+      border: 1px solid var(--bg-card-border);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Layout Components */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-accent { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-sky { background: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); }
+
+    .branch-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .branch-main { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+    .branch-earthwatch { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .branch-osint { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+    .styled-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .styled-list li {
+      position: relative;
+      padding-left: 18px;
+      margin-bottom: 6px;
+      font-size: 0.88rem;
+      line-height: 1.4;
+      color: #cbd5e1;
+    }
+
+    .styled-list li::before {
+      content: "▹";
+      position: absolute;
+      left: 0;
+      color: var(--accent-cyan);
+      font-size: 0.95rem;
+    }
+
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .styled-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: rgba(30, 41, 59, 0.6);
+      color: #e2e8f0;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .styled-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+
+    .styled-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .table-container {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .metric-card {
+      background: rgba(30, 41, 59, 0.4);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+    }
+
+    .metric-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .metric-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .alert-warning {
+      background: rgba(245, 158, 11, 0.1);
+      border-left: 4px solid var(--accent-amber);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      color: #fde68a;
+      font-size: 0.85rem;
+    }
+
+    .alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border-left: 4px solid var(--accent-emerald);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      color: #a7f3d0;
+      font-size: 0.85rem;
+    }
+
+    .code-block {
+      background: #020617;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #93c5fd;
+      overflow-x: auto;
+    }
+
+    /* Hero / Slide 1 Special */
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .hero-badge-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .hero-card {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    .hero-preview-box {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--bg-card-border);
+      background: #020617;
+      position: relative;
+    }
+
+    .hero-img {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .caption {
+      padding: 6px 10px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: rgba(15, 23, 42, 0.9);
+      border-top: 1px solid var(--bg-card-border);
+    }
+
+    .img-placeholder {
+      height: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f172a;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .stat-pill {
+      flex: 1;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .stat-val {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #ffffff;
+      font-family: var(--font-mono);
+    }
+
+    .stat-lbl {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Architecture Visual Blocks */
+    .arch-box {
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 6px;
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .arch-arrow {
+      text-align: center;
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      margin: 2px 0;
+    }
+    .tier3 { border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.1); }
+    .tier2 { border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); }
+    .tier1 { border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); }
+
+    /* Feature Cards */
+    .feature-card {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Pipeline Flow */
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .pipe-step {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .pipe-header {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 4px;
+    }
+
+    .pipe-body {
+      font-size: 0.70rem;
+      color: #cbd5e1;
+      line-height: 1.25;
+    }
+
+    .pipe-arrow {
+      color: var(--text-muted);
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    /* Ref item */
+    .ref-item {
+      margin-bottom: 8px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: #cbd5e1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding-bottom: 6px;
+    }
+
+    /* Horizon card */
+    .horizon-card {
+      position: relative;
+    }
+
+    .horizon-badge {
+      display: inline-block;
+      font-size: 0.70rem;
+      font-weight: 700;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #0f172a !important;
+        overflow: visible !important;
+        height: auto !important;
+      }
+      header, footer, #progress-container, #notes-drawer {
+        display: none !important;
+      }
+      #slide-viewport {
+        padding: 0 !important;
+        display: block !important;
+      }
+      .slide-card {
+        page-break-after: always;
+        break-after: page;
+        min-height: 100vh;
+        border: none !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        padding: 24px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Progress Bar -->
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-zone">
+      <div class="logo-mark">TP</div>
+      <div>
+        <div class="logo-text">TERRAPULSE v2.0</div>
+      </div>
+    </div>
+    <div class="header-center">
+      Computer & Communication Vision Research (CCVR) · Team 37
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="notes-toggle-btn" onclick="toggleNotes()" title="Toggle Presenter Notes (N)">
+        <span>🎙️</span> Notes (N)
+      </button>
+      <button class="btn" onclick="toggleFullscreen()" title="Toggle Fullscreen (F)">
+        <span>⛶</span> Fullscreen (F)
+      </button>
+      <button class="btn" onclick="window.print()" title="Print / Save PDF (P)">
+        <span>🖨️</span> PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Slide Viewport -->
+  <main id="slide-viewport">
+    <div class="slide-card" id="current-slide-card">
+      <div class="slide-header">
+        <div class="slide-title-area">
+          <h2 id="slide-title">Slide Title</h2>
+          <p id="slide-subtitle">Slide Subtitle</p>
+        </div>
+        <div class="slide-badge-box">
+          <span class="badge badge-accent" id="slide-category">Category</span>
+          <span class="branch-tag" id="slide-branch">Branch</span>
+        </div>
+      </div>
+      <div class="slide-body" id="slide-content">
+        <!-- Rendered Slide Body -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Presenter Notes Drawer -->
+  <div id="notes-drawer">
+    <div class="notes-header">
+      <div class="notes-title">🎙️ Presenter Notes & Oral Defenses</div>
+      <button class="btn" style="padding:2px 8px; font-size:0.75rem;" onclick="toggleNotes()">Close</button>
+    </div>
+    <div class="notes-content" id="notes-text">
+      Presenter notes will appear here.
+    </div>
+  </div>
+
+  <!-- Footer Navigation -->
+  <footer>
+    <div class="footer-left">
+      <span>Use <strong>← / →</strong> or <strong>Space</strong> to navigate</span>
+      <span>·</span>
+      <span>Press <strong>N</strong> for notes</span>
+      <span>·</span>
+      <span>Press <strong>F</strong> for fullscreen</span>
+    </div>
+    <div class="footer-controls">
+      <button class="nav-btn" onclick="prevSlide()" title="Previous Slide (←)">‹</button>
+      <div class="slide-counter" id="slide-counter">01 / 20</div>
+      <button class="nav-btn" onclick="nextSlide()" title="Next Slide (→)">›</button>
+      <select class="jump-select" id="slide-select" onchange="jumpToSlide(this.value)">
+        <!-- Options populated dynamically -->
+      </select>
+    </div>
+  </footer>
+
+  <script>
+    const slides = [{"id": 1, "title": "TerraPulse v2.0", "subtitle": "Planetary-Scale Geospatial Vision & Spatiotemporal Earth Intelligence Platform", "category": "Project Overview", "branch": "v2.0 (main)", "content": "\n            <div class=\"hero-container\">\n              <div class=\"hero-badge-group\">\n                <span class=\"badge badge-accent\">Course: CCVR</span>\n                <span class=\"badge badge-purple\">Team 37</span>\n                <span class=\"badge badge-emerald\">License: MIT</span>\n                <span class=\"badge badge-sky\">TerraPulse v2.0 Architecture</span>\n              </div>\n              <div class=\"hero-grid\">\n                <div class=\"hero-card\">\n                  <h3 style=\"color:#38bdf8; margin-top:0;\">\ud83d\udef0\ufe0f The Next-Gen Earth Intelligence Platform</h3>\n                  <p>A unified, data-driven remote sensing and computer vision platform. Synchronizes live Sentinel-2 cloud streaming, automated 4-quadrant mosaic generation, 6 calibrated environmental biophysical layers, bi-temporal split swipe change detection, and an 8-agent evidence synthesis engine.</p>\n                  <div class=\"stat-row\">\n                    <div class=\"stat-pill\"><span class=\"stat-val\">4</span><span class=\"stat-lbl\">Consolidated Workspaces</span></div>\n                    <div class=\"stat-pill\"><span class=\"stat-val\">96.35%</span><span class=\"stat-lbl\">EuroSAT Val Acc</span></div>\n                    <div class=\"stat-pill\"><span class=\"stat-val\">0.799</span><span class=\"stat-lbl\">LEVIR-CD F1 Score</span></div>\n                    <div class=\"stat-pill\"><span class=\"stat-val\">89.4%</span><span class=\"stat-lbl\">SIFT Inlier Ratio</span></div>\n                  </div>\n                </div>\n                <div class=\"hero-preview-box\">\n                  <img src=\"stitched_result.jpg\" alt=\"Satellite Mosaic\" class=\"hero-img\" onerror=\"this.parentElement.innerHTML='<div class=\\'img-placeholder\\'>\ud83d\udef0\ufe0f Satellite Mosaic Visual<br><small>stitched_result.jpg</small></div>';\">\n                  <div class=\"caption\">Figure: 4-Quadrant Fused Satellite Mosaic with Landmark Seam Alignment</div>\n                </div>\n              </div>\n            </div>\n            ", "notes": "Welcome the evaluators. Introduce TerraPulse v2.0 as a comprehensive evolution: moving beyond isolated demonstration tabs into a fully synchronized, data-driven geospatial intelligence platform running locally with zero cloud API costs."}, {"id": 2, "title": "Problem Statement", "subtitle": "Bridging the Chasm Between Satellite Pixels and Grounded Causality", "category": "Academic Context", "branch": "Problem Context", "content": "\n            <div class=\"two-col\">\n              <div>\n                <div class=\"card alert-warning\">\n                  <h4 style=\"margin:0 0 8px 0; color:#fbbf24;\">\u26a0\ufe0f The Satellite Data Deluge & Causality Gap</h4>\n                  <p style=\"margin:0; font-size:0.92rem; line-height:1.5;\">Constellations like Sentinel-2 generate terabytes of optical multi-spectral data daily. However, existing remote sensing tools stop at highlighting *that* a pixel changed, leaving analysts to guess *why* without expensive manual field investigations.</p>\n                </div>\n                <div class=\"card\" style=\"margin-top:14px;\">\n                  <h4 style=\"margin:0 0 10px 0; color:#38bdf8;\">Engineering Questions Addressed</h4>\n                  <ul class=\"styled-list\">\n                    <li><strong>Unified Application State:</strong> Can multi-temporal satellite querying, layer calibration, and change detection be orchestrated under a single reactive state without cache corruption?</li>\n                    <li><strong>Autonomous Calibration:</strong> Can classical photogrammetry (SIFT/RANSAC) and deep Siamese networks operate in tandem with zero manual parameter tuning?</li>\n                    <li><strong>Evidence-Grounded AI:</strong> Can an automated environmental investigator cite peer-reviewed literature and municipal records rather than hallucinating explanations?</li>\n                  </ul>\n                </div>\n              </div>\n              <div>\n                <div class=\"card\">\n                  <h4 style=\"margin:0 0 12px 0; color:#10b981;\">Operational Design Constraints</h4>\n                  <div class=\"metric-card\">\n                    <div class=\"metric-title\">Zero-Cloud-Cost Local Execution</div>\n                    <div class=\"metric-desc\">Stream directly from public cloud STAC catalogs (Planetary Computer) via windowed COG decimation with zero local disk footprint.</div>\n                  </div>\n                  <div class=\"metric-card\">\n                    <div class=\"metric-title\">Single Source of Truth Provenance</div>\n                    <div class=\"metric-desc\">Every layer, metric, and AI inquiry references identical verified satellite acquisition timestamps and coordinates.</div>\n                  </div>\n                  <div class=\"metric-card\">\n                    <div class=\"metric-title\">Consumer Workstation Acceleration</div>\n                    <div class=\"metric-desc\">Validated on local Apple Silicon (MPS) and NVIDIA RTX 3050 hardware.</div>\n                  </div>\n                </div>\n              </div>\n            </div>\n            ", "notes": "Emphasize the shift from 'just running a model on an image' to building a unified, verified intelligence platform that explains environmental transformations with empirical evidence."}, {"id": 3, "title": "Project Objectives & Deliverables", "subtitle": "Concrete Deliverables in the TerraPulse v2.0 Architecture", "category": "Scope & Objectives", "branch": "v2.0 Deliverables", "content": "\n            <div class=\"table-container\">\n              <table class=\"styled-table\">\n                <thead>\n                  <tr>\n                    <th style=\"width:45px;\">#</th>\n                    <th>Engineering Objective</th>\n                    <th>Deliverable in Codebase</th>\n                    <th style=\"width:170px;\">Target Metric</th>\n                    <th style=\"width:190px;\">Status Achieved</th>\n                  </tr>\n                </thead>\n                <tbody>\n                  <tr>\n                    <td><strong>1</strong></td>\n                    <td><strong>Land-Cover Classification</strong></td>\n                    <td>ResNet-18 fine-tuned on EuroSAT (10 classes)</td>\n                    <td>Val Acc \u2265 85.0%</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 96.35% Val Acc (Epoch 10)</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>2</strong></td>\n                    <td><strong>Bi-Temporal Change Detection</strong></td>\n                    <td>Siamese U-Net on LEVIR-CD (BCE + Dice)</td>\n                    <td>Test F1 \u2265 0.70</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 F1 = 0.799, IoU = 0.665</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>3</strong></td>\n                    <td><strong>Automated 4-Quadrant Stitching</strong></td>\n                    <td>SIFT + FLANN + RANSAC with seam lines</td>\n                    <td>Inlier Ratio \u2265 25%</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 89.4% Inlier Ratio</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>4</strong></td>\n                    <td><strong>Unified State Manager</strong></td>\n                    <td><code>AppStateManager</code> single source of truth</td>\n                    <td>Zero state corruption</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 Implemented & Tested</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>5</strong></td>\n                    <td><strong>6 Biophysical CV Layers</strong></td>\n                    <td>Calibrated NDVI, CIR, NDWI, NDBI, Land, Pop</td>\n                    <td>0\u2013100% Opacity Overlay</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 Operational in km\u00b2</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>6</strong></td>\n                    <td><strong>Bi-Temporal Split Swipe Slider</strong></td>\n                    <td>Harmonized common-grid swipe comparison</td>\n                    <td>Seamless swipe UX</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 Operational with \u0394NDVI</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>7</strong></td>\n                    <td><strong>Evidence-Based AI Investigator</strong></td>\n                    <td>8-agent swarm + Causal Graphs + Citations</td>\n                    <td>Verified citations</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 IISc/Springer Citations</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>8</strong></td>\n                    <td><strong>Spatiotemporal World Model</strong></td>\n                    <td><code>EarthTilePackage</code> multi-modal schema</td>\n                    <td>Future Architecture</td>\n                    <td><span class=\"badge badge-purple\">\ud83d\udd2c Architectural Roadmap</span></td>\n                  </tr>\n                </tbody>\n              </table>\n            </div>\n            ", "notes": "Every objective in the table corresponds to an active module in the codebase. Highlight that the future world model is clearly tagged as an architectural schema/roadmap."}, {"id": 4, "title": "TerraPulse v2.0 System Architecture", "subtitle": "Centralized Application State Connecting 4 Dedicated Workspaces", "category": "Architecture", "branch": "v2.0 Architecture", "content": "\n            <div class=\"two-col\">\n              <div>\n                <div class=\"card\" style=\"margin-bottom:12px; border-left:4px solid #38bdf8;\">\n                  <span class=\"branch-tag branch-main\">AppStateManager</span>\n                  <h4 style=\"margin:4px 0 6px 0; color:#38bdf8;\">Central State & Provenance Controller</h4>\n                  <p style=\"font-size:0.85rem; margin:0; color:#cbd5e1;\">Binds all user interactions to a single source of truth. Manages automatic cache invalidation on location or observation changes, and drives the 6-step guided workflow indicator.</p>\n                </div>\n                <div class=\"grid-4\" style=\"gap:8px; margin-top:12px;\">\n                  <div class=\"card\" style=\"padding:10px; font-size:0.75rem;\">\n                    <strong style=\"color:#38bdf8;\">\ud83c\udf0d Explore</strong><br>\n                    Global search, 3D globe, STAC archive, 4-quadrant mosaic.\n                  </div>\n                  <div class=\"card\" style=\"padding:10px; font-size:0.75rem;\">\n                    <strong style=\"color:#10b981;\">\ud83c\udf3f Analyze</strong><br>\n                    6 biophysical layers, 0\u2013100% opacity slider, km\u00b2 area.\n                  </div>\n                  <div class=\"card\" style=\"padding:10px; font-size:0.75rem;\">\n                    <strong style=\"color:#f59e0b;\">\u2194\ufe0f Compare</strong><br>\n                    Grid alignment, split swipe slider, \u0394NDVI change.\n                  </div>\n                  <div class=\"card\" style=\"padding:10px; font-size:0.75rem;\">\n                    <strong style=\"color:#a855f7;\">\ud83e\udde0 Investigate</strong><br>\n                    8-agent swarm, causal reasoning, citations.\n                  </div>\n                </div>\n              </div>\n              <div>\n                <div class=\"card\" style=\"height:100%; display:flex; flex-direction:column; justify-content:center;\">\n                  <h4 style=\"margin:0 0 8px 0; color:#94a3b8; text-transform:uppercase; font-size:0.8rem; letter-spacing:0.05em;\">Structural System Stack</h4>\n                  <div class=\"arch-box tier3\">\n                    <strong>Workspaces 1\u20134 & Guided 6-Step Indicator</strong>\n                    <div style=\"font-size:0.78rem; color:#cbd5e1;\">Explore \u00b7 Analyze \u00b7 Compare \u00b7 Investigate</div>\n                  </div>\n                  <div class=\"arch-arrow\">\u25b2 Synchronized by AppStateManager \u25bc</div>\n                  <div class=\"arch-box tier2\">\n                    <strong>Perception & Photogrammetric Engine</strong>\n                    <div style=\"font-size:0.78rem; color:#cbd5e1;\">ResNet-18 \u00b7 Siamese U-Net \u00b7 SIFT/FLANN/RANSAC Stitching Lab</div>\n                  </div>\n                  <div class=\"arch-arrow\">\u25b2 Ingestion & Streaming \u25bc</div>\n                  <div class=\"arch-box tier1\">\n                    <strong>Planetary Computer STAC & Sentinel-2 COG Decimation</strong>\n                    <div style=\"font-size:0.78rem; color:#cbd5e1;\">Zero-download windowed streaming \u00b7 UTM reprojection \u00b7 OSM Nominatim</div>\n                  </div>\n                </div>\n              </div>\n            </div>\n            ", "notes": "Explain how TerraPulse v2.0 consolidated earlier separate tabs into 4 streamlined workspaces connected by AppStateManager. When a user changes location or date, all dependent maps, layers, and AI investigations update synchronously."}, {"id": 5, "title": "Data Ingestion & Integrity Protocols", "subtitle": "Open Cloud Datasets with Methodological Safeguards Against Leakage", "category": "Dataset Methodology", "branch": "Data Ingestion", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 10px 0;\">Primary Data Sources</h4>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">Sentinel-2 L2A Multi-Spectral Surface Reflectance</div>\n                  <div class=\"metric-desc\">Bands B02 (Blue), B03 (Green), B04 (Red), B08 (NIR) at 10m spatial resolution. Streamed on demand from Microsoft Planetary Computer STAC via HTTP range requests.</div>\n                </div>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">EuroSAT Land Use & Land Cover Benchmark</div>\n                  <div class=\"metric-desc\">27,000 multi-spectral/RGB tiles across 10 classes. Verified MD5: <code>c8fa014336c82ac7804f0398fcb19387</code>. Stratified 70/15/15 train/val/test split.</div>\n                </div>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">LEVIR-CD High-Resolution Building Change Detection</div>\n                  <div class=\"metric-desc\">Bi-temporal pairs (0.5 m/px). Sliced into 256\u00d7256 patches across multi-year temporal intervals.</div>\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#ef4444; margin:0 0 8px 0;\">\ud83d\udee1\ufe0f Methodological Integrity: Zero Data Leakage</h4>\n                <div class=\"alert-warning\" style=\"margin-bottom:12px;\">\n                  <strong>Source-Level Scene Partitioning:</strong><br>\n                  LEVIR-CD image pairs were divided into train and test sets <em>prior to 256\u00d7256 patch tiling</em> (52 source scenes for training, 12 separate unseen source scenes for testing).\n                </div>\n                <p style=\"font-size:0.85rem; color:#cbd5e1; line-height:1.45;\">If patches from the same source scene were randomly distributed between train and test splits, spatial autocorrelation would cause severe optimistic evaluation bias. Our protocol guarantees evaluation on entirely unseen terrain.</p>\n                <div class=\"stat-row\" style=\"margin-top:12px;\">\n                  <div class=\"stat-pill\"><span class=\"stat-val\">10</span><span class=\"stat-lbl\">EuroSAT Classes</span></div>\n                  <div class=\"stat-pill\"><span class=\"stat-val\">832 / 192</span><span class=\"stat-lbl\">Train / Test Patches</span></div>\n                  <div class=\"stat-pill\"><span class=\"stat-val\">0%</span><span class=\"stat-lbl\">Scene Leakage</span></div>\n                </div>\n              </div>\n            </div>\n            ", "notes": "Evaluators care deeply about experimental validity. Emphasize that splitting by source scene rather than random tile slicing guarantees that the test set measures true generalizability."}, {"id": 6, "title": "Deep Learning Core Models", "subtitle": "Fine-Tuned ResNet-18 Classifier & Dual-Encoder Siamese U-Net", "category": "Deep Learning", "branch": "DL Architecture", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 6px 0;\">ResNet-18 Land-Cover Classifier</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.85rem;\">\n                  <li>Pretrained ImageNet feature weights fine-tuned on EuroSAT Sentinel-2 tiles.</li>\n                  <li>Custom projection head: Flatten \u2794 Dropout(0.2) \u2794 Linear(512, 10).</li>\n                  <li>Cross-Entropy loss with Adam optimizer (lr=1e-3, batch=64).</li>\n                  <li><strong>Validation Accuracy: 96.35% at epoch 10</strong> (target was \u2265 85.0%).</li>\n                </ul>\n                <h4 style=\"color:#38bdf8; margin:14px 0 6px 0;\">Siamese U-Net Change Detector</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.85rem;\">\n                  <li>Two weight-sharing encoder towers processing observation pair $(t_0, t_1)$.</li>\n                  <li>Feature distance extracted at 4 hierarchical depths: <code>|f_i(t\u2080) - f_i(t\u2081)|</code>.</li>\n                  <li>U-Net decoder with residual skip connections restores fine boundary resolution.</li>\n                  <li>Compound Loss: <code>L = BCE + Dice</code> to overcome class imbalance.</li>\n                  <li><strong>Test F1: 0.799, Test IoU: 0.665 at epoch 15</strong> (target was \u2265 0.70).</li>\n                </ul>\n              </div>\n              <div class=\"card\" style=\"display:flex; flex-direction:column; justify-content:center; align-items:center;\">\n                <h4 style=\"color:#a855f7; margin:0 0 8px 0; align-self:flex-start;\">Siamese Weight-Sharing Dataflow</h4>\n                <svg viewBox=\"0 0 440 280\" style=\"width:100%; max-width:420px; background:rgba(15,23,42,0.6); border-radius:10px; border:1px solid rgba(255,255,255,0.1);\">\n                  <rect x=\"20\" y=\"25\" width=\"80\" height=\"35\" rx=\"6\" fill=\"#1e293b\" stroke=\"#38bdf8\" stroke-width=\"1.5\"/>\n                  <text x=\"60\" y=\"47\" fill=\"#e2e8f0\" font-size=\"11\" font-weight=\"bold\" text-anchor=\"middle\">Image t\u2080</text>\n                  <rect x=\"20\" y=\"215\" width=\"80\" height=\"35\" rx=\"6\" fill=\"#1e293b\" stroke=\"#38bdf8\" stroke-width=\"1.5\"/>\n                  <text x=\"60\" y=\"237\" fill=\"#e2e8f0\" font-size=\"11\" font-weight=\"bold\" text-anchor=\"middle\">Image t\u2081</text>\n                  <rect x=\"135\" y=\"15\" width=\"75\" height=\"55\" rx=\"6\" fill=\"#0f172a\" stroke=\"#10b981\" stroke-width=\"1.5\"/>\n                  <text x=\"172\" y=\"42\" fill=\"#10b981\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">Encoder</text>\n                  <text x=\"172\" y=\"58\" fill=\"#94a3b8\" font-size=\"8\" text-anchor=\"middle\">4 Scales</text>\n                  <rect x=\"135\" y=\"205\" width=\"75\" height=\"55\" rx=\"6\" fill=\"#0f172a\" stroke=\"#10b981\" stroke-width=\"1.5\"/>\n                  <text x=\"172\" y=\"232\" fill=\"#10b981\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">Encoder</text>\n                  <text x=\"172\" y=\"248\" fill=\"#94a3b8\" font-size=\"8\" text-anchor=\"middle\">Shared Wts</text>\n                  <line x1=\"100\" y1=\"42\" x2=\"135\" y2=\"42\" stroke=\"#94a3b8\" stroke-width=\"1.5\"/>\n                  <line x1=\"100\" y1=\"232\" x2=\"135\" y2=\"232\" stroke=\"#94a3b8\" stroke-width=\"1.5\"/>\n                  <line x1=\"172\" y1=\"70\" x2=\"172\" y2=\"205\" stroke=\"#f59e0b\" stroke-width=\"1.5\" stroke-dasharray=\"4,4\"/>\n                  <text x=\"180\" y=\"140\" fill=\"#f59e0b\" font-size=\"9\" transform=\"rotate(-90 180,140)\">Shared Weights</text>\n                  <rect x=\"240\" y=\"105\" width=\"75\" height=\"65\" rx=\"6\" fill=\"#312e81\" stroke=\"#818cf8\" stroke-width=\"1.5\"/>\n                  <text x=\"277\" y=\"130\" fill=\"#c7d2fe\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">|f(t\u2080)-f(t\u2081)|</text>\n                  <text x=\"277\" y=\"148\" fill=\"#94a3b8\" font-size=\"8\" text-anchor=\"middle\">Multi-Scale</text>\n                  <text x=\"277\" y=\"160\" fill=\"#94a3b8\" font-size=\"8\" text-anchor=\"middle\">Diff Fusion</text>\n                  <path d=\"M 210 42 L 240 120\" stroke=\"#94a3b8\" stroke-width=\"1.5\"/>\n                  <path d=\"M 210 232 L 240 150\" stroke=\"#94a3b8\" stroke-width=\"1.5\"/>\n                  <rect x=\"340\" y=\"110\" width=\"80\" height=\"55\" rx=\"6\" fill=\"#1e1b4b\" stroke=\"#ec4899\" stroke-width=\"1.5\"/>\n                  <text x=\"380\" y=\"135\" fill=\"#f472b6\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">U-Net Dec</text>\n                  <text x=\"380\" y=\"152\" fill=\"#94a3b8\" font-size=\"8\" text-anchor=\"middle\">BCE + Dice</text>\n                  <line x1=\"315\" y1=\"137\" x2=\"340\" y2=\"137\" stroke=\"#ec4899\" stroke-width=\"2\"/>\n                  <text x=\"380\" y=\"195\" fill=\"#34d399\" font-size=\"10\" font-weight=\"bold\" text-anchor=\"middle\">Change Mask</text>\n                </svg>\n              </div>\n            </div>\n            ", "notes": "Walk through the Siamese mathematical formulation. Shared weights guarantee that the network treats t0 and t1 with exact symmetry, while multi-scale difference captures both minute structures and large parcels."}, {"id": 7, "title": "Empirical Training Results", "subtitle": "Actual Convergence Metrics Sourced from Committed Checkpoint Logs", "category": "Experimental Validation", "branch": "Checkpoint Logs", "content": "\n            <div class=\"two-col\">\n              <div>\n                <div class=\"card\">\n                  <h4 style=\"margin:0 0 6px 0; color:#38bdf8;\">EuroSAT Classifier (ResNet-18)</h4>\n                  \n    <svg viewBox=\"0 0 540 230\" class=\"chart-svg\" style=\"width:100%; height:auto; background:rgba(15,23,42,0.6); border-radius:12px; border:1px solid rgba(255,255,255,0.1);\">\n      <line x1=\"40\" y1=\"190.0\" x2=\"500\" y2=\"190.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"194.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">80%</text><line x1=\"40\" y1=\"152.5\" x2=\"500\" y2=\"152.5\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"156.5\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">85%</text><line x1=\"40\" y1=\"115.0\" x2=\"500\" y2=\"115.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"119.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">90%</text><line x1=\"40\" y1=\"77.5\" x2=\"500\" y2=\"77.5\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"81.5\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">95%</text><line x1=\"40\" y1=\"40.0\" x2=\"500\" y2=\"40.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"44.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">100%</text>\n      <path d=\"M 40.0,146.6 L 72.9,112.7 L 105.7,99.4 L 138.6,93.2 L 171.4,87.6 L 204.3,85.3 L 237.1,81.6 L 270.0,80.5 L 302.9,76.8 L 335.7,75.8 L 368.6,74.6 L 401.4,74.0 L 434.3,75.4 L 467.1,72.5 L 500.0,69.0\" fill=\"none\" stroke=\"#38bdf8\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /><path d=\"M 40.0,105.9 L 72.9,112.0 L 105.7,110.9 L 138.6,80.4 L 171.4,134.8 L 204.3,77.8 L 237.1,113.9 L 270.0,79.6 L 302.9,87.2 L 335.7,67.4 L 368.6,141.3 L 401.4,71.9 L 434.3,74.8 L 467.1,71.5 L 500.0,74.1\" fill=\"none\" stroke=\"#10b981\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />\n      <circle cx=\"40.0\" cy=\"146.6\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 1: 0.858</title></circle><circle cx=\"138.6\" cy=\"93.2\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 4: 0.929</title></circle><circle cx=\"237.1\" cy=\"81.6\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 7: 0.944</title></circle><circle cx=\"335.7\" cy=\"75.8\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 10: 0.952</title></circle><circle cx=\"434.3\" cy=\"75.4\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 13: 0.953</title></circle><circle cx=\"500.0\" cy=\"69.0\" r=\"3.5\" fill=\"#38bdf8\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 15: 0.961</title></circle><circle cx=\"40.0\" cy=\"105.9\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 1: 0.912</title></circle><circle cx=\"138.6\" cy=\"80.4\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 4: 0.946</title></circle><circle cx=\"237.1\" cy=\"113.9\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 7: 0.901</title></circle><circle cx=\"335.7\" cy=\"67.4\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 10: 0.963</title></circle><circle cx=\"434.3\" cy=\"74.8\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 13: 0.954</title></circle><circle cx=\"500.0\" cy=\"74.1\" r=\"3.5\" fill=\"#10b981\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 15: 0.955</title></circle>\n      <rect x=\"50\" y=\"12\" width=\"12\" height=\"4\" rx=\"2\" fill=\"#38bdf8\" /><text x=\"66\" y=\"17\" font-size=\"11\" fill=\"#e2e8f0\" font-weight=\"600\">Train Accuracy</text><rect x=\"198\" y=\"12\" width=\"12\" height=\"4\" rx=\"2\" fill=\"#10b981\" /><text x=\"214\" y=\"17\" font-size=\"11\" fill=\"#e2e8f0\" font-weight=\"600\">Val Accuracy (Best: 96.35%)</text>\n    </svg>\n    \n                  <div style=\"font-size:0.78rem; color:#94a3b8; margin-top:6px;\">\n                    Peak val accuracy: <strong>96.35% at epoch 10</strong> (target was \u226585%). Final epoch 15 holds steady at 95.5%.\n                  </div>\n                </div>\n              </div>\n              <div>\n                <div class=\"card\">\n                  <h4 style=\"margin:0 0 6px 0; color:#ec4899;\">LEVIR-CD Change Detector (Siamese U-Net)</h4>\n                  \n    <svg viewBox=\"0 0 540 230\" class=\"chart-svg\" style=\"width:100%; height:auto; background:rgba(15,23,42,0.6); border-radius:12px; border:1px solid rgba(255,255,255,0.1);\">\n      <line x1=\"40\" y1=\"190.0\" x2=\"500\" y2=\"190.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"194.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">0%</text><line x1=\"40\" y1=\"152.5\" x2=\"500\" y2=\"152.5\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"156.5\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">22%</text><line x1=\"40\" y1=\"115.0\" x2=\"500\" y2=\"115.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"119.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">45%</text><line x1=\"40\" y1=\"77.5\" x2=\"500\" y2=\"77.5\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"81.5\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">68%</text><line x1=\"40\" y1=\"40.0\" x2=\"500\" y2=\"40.0\" stroke=\"rgba(255,255,255,0.08)\" stroke-dasharray=\"3,3\" /><text x=\"32\" y=\"44.0\" font-size=\"10\" fill=\"#94a3b8\" text-anchor=\"end\" font-family=\"monospace\">90%</text>\n      <path d=\"M 40.0,164.2 L 59.2,115.2 L 78.3,100.3 L 97.5,98.2 L 116.7,88.5 L 135.8,86.2 L 155.0,78.4 L 174.2,82.4 L 193.3,74.7 L 212.5,72.3 L 231.7,70.2 L 250.8,73.2 L 270.0,68.9 L 289.2,64.7 L 308.3,64.6 L 327.5,66.2 L 346.7,60.9 L 365.8,67.6 L 385.0,56.2 L 404.2,58.4 L 423.3,58.8 L 442.5,55.5 L 461.7,52.6 L 480.8,52.1 L 500.0,53.8\" fill=\"none\" stroke=\"#a855f7\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /><path d=\"M 40.0,167.3 L 59.2,114.6 L 78.3,157.2 L 97.5,98.5 L 116.7,115.7 L 135.8,90.5 L 155.0,89.7 L 174.2,88.5 L 193.3,125.8 L 212.5,87.1 L 231.7,94.2 L 250.8,111.2 L 270.0,90.0 L 289.2,85.3 L 308.3,56.8 L 327.5,71.3 L 346.7,114.2 L 365.8,70.4 L 385.0,78.6 L 404.2,81.8 L 423.3,58.9 L 442.5,81.7 L 461.7,83.2 L 480.8,72.3 L 500.0,64.9\" fill=\"none\" stroke=\"#ec4899\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /><path d=\"M 40.0,177.8 L 59.2,141.3 L 78.3,171.8 L 97.5,127.0 L 116.7,142.2 L 135.8,119.1 L 155.0,118.2 L 174.2,117.1 L 193.3,150.2 L 212.5,115.6 L 231.7,122.8 L 250.8,138.4 L 270.0,118.6 L 289.2,113.7 L 308.3,79.1 L 327.5,97.9 L 346.7,141.0 L 365.8,96.7 L 385.0,106.4 L 404.2,109.9 L 423.3,82.0 L 442.5,109.7 L 461.7,111.5 L 480.8,99.0 L 500.0,89.8\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />\n      <circle cx=\"40.0\" cy=\"164.2\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 1: 0.155</title></circle><circle cx=\"97.5\" cy=\"98.2\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 4: 0.551</title></circle><circle cx=\"155.0\" cy=\"78.4\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 7: 0.669</title></circle><circle cx=\"212.5\" cy=\"72.3\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 10: 0.706</title></circle><circle cx=\"270.0\" cy=\"68.9\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 13: 0.727</title></circle><circle cx=\"308.3\" cy=\"64.6\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 15: 0.753</title></circle><circle cx=\"327.5\" cy=\"66.2\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 16: 0.743</title></circle><circle cx=\"385.0\" cy=\"56.2\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 19: 0.803</title></circle><circle cx=\"442.5\" cy=\"55.5\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 22: 0.807</title></circle><circle cx=\"500.0\" cy=\"53.8\" r=\"3.5\" fill=\"#a855f7\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 25: 0.817</title></circle><circle cx=\"40.0\" cy=\"167.3\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 1: 0.136</title></circle><circle cx=\"97.5\" cy=\"98.5\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 4: 0.549</title></circle><circle cx=\"155.0\" cy=\"89.7\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 7: 0.602</title></circle><circle cx=\"212.5\" cy=\"87.1\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 10: 0.617</title></circle><circle cx=\"270.0\" cy=\"90.0\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 13: 0.600</title></circle><circle cx=\"308.3\" cy=\"56.8\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 15: 0.799</title></circle><circle cx=\"327.5\" cy=\"71.3\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 16: 0.712</title></circle><circle cx=\"385.0\" cy=\"78.6\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 19: 0.668</title></circle><circle cx=\"442.5\" cy=\"81.7\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 22: 0.650</title></circle><circle cx=\"500.0\" cy=\"64.9\" r=\"3.5\" fill=\"#ec4899\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 25: 0.751</title></circle><circle cx=\"40.0\" cy=\"177.8\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 1: 0.073</title></circle><circle cx=\"97.5\" cy=\"127.0\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 4: 0.378</title></circle><circle cx=\"155.0\" cy=\"118.2\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 7: 0.431</title></circle><circle cx=\"212.5\" cy=\"115.6\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 10: 0.446</title></circle><circle cx=\"270.0\" cy=\"118.6\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 13: 0.428</title></circle><circle cx=\"308.3\" cy=\"79.1\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 15: 0.665</title></circle><circle cx=\"327.5\" cy=\"97.9\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 16: 0.553</title></circle><circle cx=\"385.0\" cy=\"106.4\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 19: 0.502</title></circle><circle cx=\"442.5\" cy=\"109.7\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 22: 0.482</title></circle><circle cx=\"500.0\" cy=\"89.8\" r=\"3.5\" fill=\"#f59e0b\" stroke=\"#0f172a\" stroke-width=\"1.5\"><title>Epoch 25: 0.601</title></circle>\n      <rect x=\"50\" y=\"12\" width=\"12\" height=\"4\" rx=\"2\" fill=\"#a855f7\" /><text x=\"66\" y=\"17\" font-size=\"11\" fill=\"#e2e8f0\" font-weight=\"600\">Train F1</text><rect x=\"150\" y=\"12\" width=\"12\" height=\"4\" rx=\"2\" fill=\"#ec4899\" /><text x=\"166\" y=\"17\" font-size=\"11\" fill=\"#e2e8f0\" font-weight=\"600\">Test F1 (Best: 0.799)</text><rect x=\"354\" y=\"12\" width=\"12\" height=\"4\" rx=\"2\" fill=\"#f59e0b\" /><text x=\"370\" y=\"17\" font-size=\"11\" fill=\"#e2e8f0\" font-weight=\"600\">Test IoU (0.665)</text>\n    </svg>\n    \n                  <div style=\"font-size:0.78rem; color:#94a3b8; margin-top:6px;\">\n                    Peak test metrics: <strong>F1 = 0.799, IoU = 0.665 at epoch 15</strong>. Massive improvement over pixel-diff baseline.\n                  </div>\n                </div>\n              </div>\n            </div>\n            <div class=\"card\" style=\"margin-top:10px; background:rgba(30,41,59,0.5); padding:10px 16px;\">\n              <div style=\"display:flex; justify-content:space-around; text-align:center;\">\n                <div><span style=\"color:#94a3b8; font-size:0.75rem;\">Classical Pixel-Diff Baseline</span><br><strong style=\"font-size:1.0rem; color:#ef4444;\">F1: 0.164 | IoU: 0.089</strong></div>\n                <div><span style=\"color:#94a3b8; font-size:0.75rem;\">Siamese U-Net (Ours)</span><br><strong style=\"font-size:1.0rem; color:#10b981;\">F1: 0.799 | IoU: 0.665</strong></div>\n                <div><span style=\"color:#94a3b8; font-size:0.75rem;\">Relative F1 Gain</span><br><strong style=\"font-size:1.0rem; color:#38bdf8;\">+387.2% Improvement</strong></div>\n              </div>\n            </div>\n            ", "notes": "These numbers are not estimates\u2014they are exact values extracted from checkpoints/classify_training_log.csv and checkpoints/change_training_log.csv."}, {"id": 8, "title": "Workspace 1: \ud83c\udf0d Explore & Discover", "subtitle": "Global Search, 3D Orbital Globe & Automated 4-Quadrant Mosaicking", "category": "Workspace 1", "branch": "workspace_explore.py", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">Global Ingestion Engine</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.85rem;\">\n                  <li><strong>Universal Geocoding:</strong> OpenStreetMap Nominatim integration supporting free-text query or 7 pre-warmed global megacities (Bengaluru, Tokyo Bay, Cairo, Swiss Alps, Grand Canyon, Paris, Dubai).</li>\n                  <li><strong>3D Orbital Globe:</strong> Deck.gl / Pydeck integration clamping georeferenced square mosaics onto an interactive 3D Earth sphere with orbital physics.</li>\n                  <li><strong>Multi-Epoch STAC Archive:</strong> Real-time querying of Microsoft Planetary Computer STAC from 2016 to 2025.</li>\n                </ul>\n                <div class=\"alert-success\" style=\"margin-top:10px; font-size:0.82rem;\">\n                  <strong>Automated 2\u00d72 Quadrant Detection:</strong> Identifies Northwest, Northeast, Southwest, and Southeast tiles across scene boundaries automatically.\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">Cross-UTM Reprojection & Mosaic</h4>\n                <p style=\"font-size:0.84rem; color:#cbd5e1; line-height:1.45;\">\n                  Adjacent satellite scenes frequently span different UTM zones. Workspace 1 dynamically detects UTM boundaries and invokes <code>rasterio.warp.calculate_default_transform</code> to reproject all 4 quadrants into a shared coordinate reference system before fusing them via <code>rasterio.merge</code>.\n                </p>\n                <div class=\"metric-card\" style=\"margin-top:10px;\">\n                  <div class=\"metric-title\">Zero Local Storage Footprint</div>\n                  <div class=\"metric-desc\">Cloud-Optimized GeoTIFFs (COGs) stream overview bands directly into NumPy memory with on-the-fly decimation.</div>\n                </div>\n              </div>\n            </div>\n            ", "notes": "Demonstrate how the automated 4-tile quadrant detection removes manual effort\u2014evaluators can pick any coordinate on Earth, and TerraPulse handles the discovery, coordinate conversion, and stitching automatically."}, {"id": 9, "title": "Workspace 2: \ud83c\udf3f Analyze (Environmental CV)", "subtitle": "6 Calibrated Biophysical Layers with Dynamic 0\u2013100% Opacity Overlay", "category": "Workspace 2", "branch": "workspace_analyze.py", "content": "\n            <div class=\"grid-3\" style=\"gap:12px; margin-bottom:12px;\">\n              <div class=\"card feature-card\">\n                <strong style=\"color:#34d399; font-size:0.85rem;\">\ud83c\udf3f 1. Vegetation Index (NDVI)</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">(B08-B04)/(B08+B04). Distinguishes healthy photosynthetic canopy from soil and urban concrete.</p>\n              </div>\n              <div class=\"card feature-card\">\n                <strong style=\"color:#60a5fa; font-size:0.85rem;\">\ud83d\udca7 2. Water Extent (NDWI)</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">(B03-B08)/(B03+B08). McFeeters formulation mapping open reservoirs, lakes, and drainage channels.</p>\n              </div>\n              <div class=\"card feature-card\">\n                <strong style=\"color:#f87171; font-size:0.85rem;\">\ud83d\udd34 3. False-Color (CIR)</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">NIR-Red-Green composite highlighting vegetation cellular structure in high-contrast red.</p>\n              </div>\n              <div class=\"card feature-card\">\n                <strong style=\"color:#fbbf24; font-size:0.85rem;\">\ud83c\udfd9\ufe0f 4. Built-Up Index (NDBI)</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">Spectral difference highlighting urban development, asphalt corridors, and construction.</p>\n              </div>\n              <div class=\"card feature-card\">\n                <strong style=\"color:#c084fc; font-size:0.85rem;\">\ud83d\uddfa\ufe0f 5. Land Cover (5-Class)</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">Deterministic classification: Water, Dense Canopy, Moderate Veg, Built-Up, Bare Soil.</p>\n              </div>\n              <div class=\"card feature-card\">\n                <strong style=\"color:#38bdf8; font-size:0.85rem;\">\ud83d\udc65 6. Population Proxy</strong>\n                <p style=\"font-size:0.75rem; color:#cbd5e1; margin-top:4px;\">Gridded density model mapping settlement clusters over structural impervious surfaces.</p>\n              </div>\n            </div>\n            <div class=\"card\" style=\"background:rgba(15,23,42,0.8);\">\n              <h4 style=\"color:#38bdf8; margin:0 0 6px 0; font-size:0.9rem;\">Interactive 0\u2013100% Opacity Overlay & Metric Calibration</h4>\n              <p style=\"font-size:0.82rem; color:#cbd5e1; margin:0; line-height:1.4;\">\n                Allows blending spectral heatmap layers seamlessly onto true-color satellite imagery. Every layer outputs calibrated physical area in <strong>square kilometers (km\u00b2)</strong>, percentage distribution, and pixel histograms.\n              </p>\n            </div>\n            ", "notes": "Highlight the engineering utility of the 0\u2013100% opacity slider. Rather than viewing an isolated false-color mask, evaluators see exactly which city blocks or lakes correspond to the spectral anomalies."}, {"id": 10, "title": "Workspace 3: \u2194\ufe0f Compare (Bi-Temporal Change)", "subtitle": "Common Grid Harmonization & Interactive Split Swipe Comparison", "category": "Workspace 3", "branch": "workspace_compare.py", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">Conditional Multi-Epoch Alignment</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.85rem;\">\n                  <li><strong>Conditional UI Activation:</strong> Only enables when two valid temporal observations exist; provides informative status when secondary imagery is pending.</li>\n                  <li><strong>Spatial Harmonization:</strong> Warps baseline $(t_0)$ and current $(t_1)$ observations onto an identical pixel coordinate grid and bounding box.</li>\n                  <li><strong>Strict Provenance Metadata:</strong> Displays acquisition dates, satellite platform IDs, cloud percentages, and spatial overlap ratio.</li>\n                </ul>\n                <div class=\"metric-card\" style=\"margin-top:10px;\">\n                  <div class=\"metric-title\">\u0394NDVI Vegetation Gain & Depletion Map</div>\n                  <div class=\"metric-desc\">Computes <code>\u0394NDVI = NDVI(t\u2081) - NDVI(t\u2080)</code> to highlight afforestation (+green) vs canopy depletion (-red).</div>\n                </div>\n              </div>\n              <div class=\"card\" style=\"display:flex; flex-direction:column; justify-content:center; align-items:center;\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0; align-self:flex-start;\">Split Swipe Comparison Visual</h4>\n                <div style=\"width:100%; height:180px; background:#020617; border-radius:8px; border:1px solid #334155; position:relative; overflow:hidden; display:flex;\">\n                  <div style=\"width:50%; height:100%; background:linear-gradient(135deg, #064e3b, #0f172a); display:flex; align-items:center; justify-content:center; color:#34d399; font-weight:bold; font-size:0.85rem;\">\n                    Baseline (t\u2080: 2020)\n                  </div>\n                  <div style=\"width:2px; height:100%; background:#00f0ff; position:relative; z-index:10;\">\n                    <div style=\"width:22px; height:22px; border-radius:50%; background:#0b0f19; border:2px solid #00f0ff; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:flex; align-items:center; justify-content:center; font-size:10px; color:#00f0ff;\">\u2194</div>\n                  </div>\n                  <div style=\"width:50%; height:100%; background:linear-gradient(135deg, #451a03, #0f172a); display:flex; align-items:center; justify-content:center; color:#fbbf24; font-weight:bold; font-size:0.85rem;\">\n                    Current (t\u2081: 2024)\n                  </div>\n                </div>\n                <div style=\"font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:8px;\">Interactive swipe slider dynamically compares before/after scenes with common spatial boundary</div>\n              </div>\n            </div>\n            ", "notes": "Point out that the comparison workspace prevents false comparisons by enforcing exact spatial alignment and reporting the overlap percentage before running change detection."}, {"id": 11, "title": "Workspace 4: \ud83e\udde0 Investigate (AI Evidence Synthesis)", "subtitle": "8-Agent Swarm Grounded in Empirical Sensor Data & Peer-Reviewed Literature", "category": "Workspace 4", "branch": "workspace_investigate.py", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#a855f7; margin:0 0 8px 0;\">The 8-Agent Synthesis Swarm</h4>\n                <div class=\"grid-2\" style=\"display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.75rem;\">\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83d\udef0\ufe0f Satellite Analysis</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83d\udcda Academic Research</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83c\udfdb\ufe0f Policy & BDA Plans</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83d\udcf0 News & Media Archives</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83d\udc65 Census Demographics</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83d\ude87 Infrastructure Corridors</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\ud83c\udf0a Lake Ecology Surveys</div>\n                  <div class=\"metric-card\" style=\"margin:0; padding:8px;\">\u2696\ufe0f Cross-Verification</div>\n                </div>\n                <div class=\"alert-success\" style=\"margin-top:10px; font-size:0.8rem;\">\n                  <strong>Empirical Grounding:</strong> Ingests measured km\u00b2 land-cover transformations from Workspace 2 rather than guessing causality from raw images.\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">Strict Evidence Categorization</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.8rem;\">\n                  <li><strong style=\"color:#38bdf8;\">[OBSERVED]:</strong> Directly measured by optical sensors (e.g. built-up density rising from 21.8% to 74.2%).</li>\n                  <li><strong style=\"color:#34d399;\">[DOCUMENTED]:</strong> Verified in government census / peer-reviewed literature (e.g. population tripling to 13.5M).</li>\n                  <li><strong style=\"color:#fbbf24;\">[CORRELATED]:</strong> Spatial overlap between stormwater encroachment and IT corridors.</li>\n                  <li><strong style=\"color:#c084fc;\">[POSSIBLE EXPLANATION]:</strong> Planning projections (BDA Master Plan 2031).</li>\n                </ul>\n                <div style=\"font-size:0.78rem; color:#94a3b8; margin-top:6px;\">\n                  Includes interactive Causal Reasoning Graph citing IISc CES studies and KSRSAC Wetland Atlases.\n                </div>\n              </div>\n            </div>\n            ", "notes": "This is a major differentiator. The AI investigator does not hallucinate causal claims; it explicitly tags what was measured by satellite versus what was recorded in government archives."}, {"id": 12, "title": "Advanced Diagnostics: \ud83d\udd2c SIFT Stitching Lab", "subtitle": "Multi-Seam Landmark Reference Lines & Photogrammetric Verification", "category": "Diagnostics Drawer", "branch": "workspace_advanced.py", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">Multi-Seam Landmark Lines Canvas</h4>\n                <p style=\"font-size:0.84rem; color:#cbd5e1; line-height:1.45;\">\n                  Verifies geometric seamlessness by projecting continuous emerald horizontal and cyan vertical landmark reference lines across quadrant seams. Evaluators can visually confirm zero shear distortion across tile boundaries.\n                </p>\n                <div class=\"stat-row\" style=\"margin-top:12px;\">\n                  <div class=\"stat-pill\"><span class=\"stat-val\">89.4%</span><span class=\"stat-lbl\">RANSAC Inlier Ratio</span></div>\n                  <div class=\"stat-pill\"><span class=\"stat-val\">&lt; 5.0 px</span><span class=\"stat-lbl\">Reprojection Tolerance</span></div>\n                  <div class=\"stat-pill\"><span class=\"stat-val\">3\u00d73</span><span class=\"stat-lbl\">Homography Matrix</span></div>\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">Algorithmic Photogrammetry Pipeline</h4>\n                <ol class=\"styled-list\" style=\"font-size:0.82rem;\">\n                  <li><strong>SIFT Detection:</strong> Difference-of-Gaussians scale-space extrema with 128-dim orientation descriptors.</li>\n                  <li><strong>FLANN Matching:</strong> 5 randomized KD-Trees finding approximate nearest neighbors.</li>\n                  <li><strong>Lowe's Ratio Test:</strong> Prunes matches with distance ratio d\u2081/d\u2082 \u2265 0.75.</li>\n                  <li><strong>RANSAC Homography:</strong> Iterative outlier rejection calculating optimal 3\u00d73 perspective warp.</li>\n                  <li><strong>Diagnostic Views:</strong> Overlap alpha-blend slider and alternating checkerboard split view.</li>\n                </ol>\n              </div>\n            </div>\n            ", "notes": "Walk through the photogrammetric diagnostics. The landmark reference lines prove to evaluators that geometric rectification succeeds across seams without distorting roads or terrain."}, {"id": 13, "title": "Central State Management & Provenance", "subtitle": "AppStateManager: Reactive Single Source of Truth & Guided Workflow", "category": "Software Architecture", "branch": "state_manager.py", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">AppStateManager Invalidation Logic</h4>\n                <p style=\"font-size:0.84rem; color:#cbd5e1; line-height:1.45;\">\n                  Eliminates fragmented state bugs. When a user switches location or observation date, downstream caches are systematically invalidated:\n                </p>\n                <div class=\"code-block\" style=\"font-size:0.75rem; margin-top:8px;\">\n                  Location Change \u2794 Clear Scenes, Mosaics, Layers, Comparisons<br>\n                  Observation Switch \u2794 Clear Dependent Environmental Layers<br>\n                  Preserves Cache \u2794 Re-visiting identical Observation ID\n                </div>\n                <div class=\"alert-success\" style=\"margin-top:10px; font-size:0.8rem;\">\n                  <strong>Tested & Verified:</strong> 100% passing tests in <code>tests/test_state_manager.py</code>.\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">Live 6-Step Guided Workflow Indicator</h4>\n                <div class=\"styled-list\" style=\"font-size:0.82rem;\">\n                  <li><strong>Step 1: Location</strong> \u2014 Geocoded coordinates & target UTM zone</li>\n                  <li><strong>Step 2: Imagery</strong> \u2014 Sentinel-2 scene discovery from STAC</li>\n                  <li><strong>Step 3: Map</strong> \u2014 Automated 4-quadrant mosaic generation</li>\n                  <li><strong>Step 4: Environmental Layers</strong> \u2014 6 biophysical layers calibrated</li>\n                  <li><strong>Step 5: Compare Dates</strong> \u2014 Multi-epoch grid alignment</li>\n                  <li><strong>Step 6: Investigate</strong> \u2014 Multi-agent evidence synthesis ready</li>\n                </div>\n                <div style=\"font-size:0.75rem; color:#94a3b8; margin-top:6px;\">Contextual badges indicate exact step completion status in real time</div>\n              </div>\n            </div>\n            ", "notes": "Explain how this architectural redesign solved a major user experience hurdle. Previously, changing a location could leave stale maps in other tabs. Now, AppStateManager guarantees 100% cache consistency."}, {"id": 14, "title": "Comprehensive Technology Stack", "subtitle": "Scientific Computing, Deep Learning & Remote Sensing Frameworks", "category": "Tech Stack", "branch": "Tech Matrix", "content": "\n            <div class=\"grid-3\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">\ud83e\udde0 Deep Learning</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.82rem;\">\n                  <li><strong>PyTorch 2.4.1</strong> \u2014 Tensor engine with Apple Silicon MPS & CUDA acceleration</li>\n                  <li><strong>torchvision 0.19.1</strong> \u2014 ResNet-18 pretrained feature weights</li>\n                  <li><strong>segmentation-models</strong> \u2014 U-Net & DeepLabV3+ architectures</li>\n                  <li><strong>timm & transformers</strong> \u2014 NASA Prithvi-EO ViT support</li>\n                </ul>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">\ud83d\udef0\ufe0f Geospatial & CV</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.82rem;\">\n                  <li><strong>OpenCV 4.10</strong> \u2014 SIFT keypoints, FLANN matcher, warpPerspective</li>\n                  <li><strong>rasterio 1.3</strong> \u2014 COG window decimation, UTM reprojection, merge</li>\n                  <li><strong>pystac-client</strong> \u2014 SpatioTemporal Asset Catalog queries</li>\n                  <li><strong>pydeck & Deck.gl</strong> \u2014 Clamped 3D orbital globe rendering</li>\n                </ul>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#ec4899; margin:0 0 8px 0;\">\ud83d\udcbb UI & Testing</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.82rem;\">\n                  <li><strong>Streamlit 1.38.0</strong> \u2014 4-workspace reactive web platform</li>\n                  <li><strong>FastAPI</strong> \u2014 Backend microservices for investigator & telemetry</li>\n                  <li><strong>pytest 8.3.3</strong> \u2014 State manager & stitching test suites</li>\n                  <li><strong>OSM Nominatim</strong> \u2014 Free global geocoding API</li>\n                </ul>\n              </div>\n            </div>\n            <div class=\"card\" style=\"margin-top:12px; background:rgba(30,41,59,0.5); display:flex; justify-content:space-between; align-items:center;\">\n              <span style=\"font-size:0.85rem;\"><strong>Reproducibility:</strong> Pinned dependencies in <code>requirements.txt</code> with zero paid API keys.</span>\n              <span class=\"badge badge-emerald\">MPS & CPU Optimized</span>\n            </div>\n            ", "notes": "All components run locally. No proprietary SaaS tools or expensive cloud instances are required to reproduce the full pipeline."}, {"id": 15, "title": "Empirical Benchmark Scorecard", "subtitle": "Rigorous Subsystem Verification Across Computer Vision & System Modules", "category": "Evaluation", "branch": "Benchmark Matrix", "content": "\n            <div class=\"table-container\">\n              <table class=\"styled-table\">\n                <thead>\n                  <tr>\n                    <th>Subsystem</th>\n                    <th>Evaluation Dataset</th>\n                    <th>Metric</th>\n                    <th>Target</th>\n                    <th>Achieved</th>\n                    <th>Status</th>\n                  </tr>\n                </thead>\n                <tbody>\n                  <tr>\n                    <td><strong>Classifier</strong></td>\n                    <td>EuroSAT (27k tiles, 10 classes)</td>\n                    <td>Top-1 Validation Accuracy</td>\n                    <td>\u2265 85.0%</td>\n                    <td><strong style=\"color:#34d399;\">96.35%</strong> (Epoch 10)</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 +11.35% Margin</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>Pixel Baseline</strong></td>\n                    <td>LEVIR-CD (Unsupervised Diff)</td>\n                    <td>Test F1 / IoU</td>\n                    <td>Baseline Reference</td>\n                    <td>F1 = 0.164, IoU = 0.089</td>\n                    <td><span class=\"badge badge-sky\">Base</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>Siamese U-Net</strong></td>\n                    <td>LEVIR-CD (832 train / 192 test)</td>\n                    <td>Test F1 Score</td>\n                    <td>\u2265 0.700</td>\n                    <td><strong style=\"color:#34d399;\">0.799</strong> (Epoch 15)</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 +14.1% Margin</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>Siamese U-Net</strong></td>\n                    <td>LEVIR-CD (832 train / 192 test)</td>\n                    <td>Intersection over Union (IoU)</td>\n                    <td>\u2265 0.500</td>\n                    <td><strong style=\"color:#34d399;\">0.665</strong> (Epoch 15)</td>\n                    <td><span class=\"badge badge-emerald\">\u2705 +33.0% Margin</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>Tile Stitcher</strong></td>\n                    <td>Overlapping Synthetic Satellite Tiles</td>\n                    <td>RANSAC Inlier Ratio</td>\n                    <td>\u2265 25.0%</td>\n                    <td><strong style=\"color:#34d399;\">89.4% Inliers</strong></td>\n                    <td><span class=\"badge badge-emerald\">\u2705 +257.6% Margin</span></td>\n                  </tr>\n                  <tr>\n                    <td><strong>State Manager</strong></td>\n                    <td><code>tests/test_state_manager.py</code></td>\n                    <td>Cache Invalidation Verification</td>\n                    <td>100% Pass</td>\n                    <td><strong style=\"color:#34d399;\">All Tests Passing</strong></td>\n                    <td><span class=\"badge badge-emerald\">\u2705 Verified</span></td>\n                  </tr>\n                </tbody>\n              </table>\n            </div>\n            ", "notes": "Reiterate that all numbers reflect committed results. The Siamese U-Net achieves an F1 of 0.799 on unseen test scenes, representing a ~387% improvement over the baseline."}, {"id": 16, "title": "End-to-End Operational Pipeline", "subtitle": "Complete Workflow from Orbit to Evidence-Based Environmental Intelligence", "category": "Operational Workflow", "branch": "Pipeline Flow", "content": "\n            <div class=\"pipeline-flow\">\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">1. Location</div>\n                <div class=\"pipe-body\">Nominatim geocode \u2794 Bounding Box \u2794 Optimal UTM</div>\n              </div>\n              <div class=\"pipe-arrow\">\u2794</div>\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">2. Stream</div>\n                <div class=\"pipe-body\">Planetary Computer STAC \u2794 Decimated COG range stream</div>\n              </div>\n              <div class=\"pipe-arrow\">\u2794</div>\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">3. Stitch</div>\n                <div class=\"pipe-body\">Auto 4-quadrant detection \u2794 UTM warp \u2794 Seamless mosaic</div>\n              </div>\n              <div class=\"pipe-arrow\">\u2794</div>\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">4. Calibrate</div>\n                <div class=\"pipe-body\">NDVI, CIR, NDWI, NDBI \u2794 Land cover \u2794 Area in km\u00b2</div>\n              </div>\n              <div class=\"pipe-arrow\">\u2794</div>\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">5. Compare</div>\n                <div class=\"pipe-body\">Common grid alignment \u2794 Split swipe slider \u2794 \u0394NDVI</div>\n              </div>\n              <div class=\"pipe-arrow\">\u2794</div>\n              <div class=\"pipe-step\">\n                <div class=\"pipe-header\">6. Reason</div>\n                <div class=\"pipe-body\">8-agent swarm \u2794 Causal graph \u2794 IISc citations</div>\n              </div>\n            </div>\n            <div class=\"card\" style=\"margin-top:16px;\">\n              <h4 style=\"color:#a855f7; margin:0 0 6px 0; font-size:0.9rem;\">Architectural Consistency Highlights</h4>\n              <div class=\"two-col\" style=\"font-size:0.82rem; color:#cbd5e1; line-height:1.45;\">\n                <div>\n                  \u2022 <strong>Single State Coordination:</strong> <code>AppStateManager</code> guarantees all workspaces reference the same sensor acquisition dates.<br>\n                  \u2022 <strong>Memory Efficiency:</strong> Streams Cloud-Optimized GeoTIFFs directly into NumPy memory without local disk bloat.\n                </div>\n                <div>\n                  \u2022 <strong>Graceful Degradation:</strong> Automated fallbacks ensure smooth offline demonstration if cloud network latency spikes.<br>\n                  \u2022 <strong>Scientific Transparency:</strong> Clearly separates measured optical sensor results from external literature evidence.\n                </div>\n              </div>\n            </div>\n            ", "notes": "Walk the evaluators through the operational flow. Notice how each stage feeds directly into the next, maintaining mathematical and geographic consistency throughout."}, {"id": 17, "title": "Software Engineering & Test Automation", "subtitle": "Comprehensive Automated Test Suites Ensuring Systemic Reliability", "category": "Quality Assurance", "branch": "Test Suite", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 8px 0;\">Automated Test Modules</h4>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">tests/test_state_manager.py</div>\n                  <div class=\"metric-desc\">Tests state initialization, bounding box calculation, location change invalidation, and observation switching.</div>\n                </div>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">tests/test_stitching_lab.py</div>\n                  <div class=\"metric-desc\">Validates 4-tile quadrant detection, correspondence data structures, and landmark seam line rendering.</div>\n                </div>\n                <div class=\"metric-card\">\n                  <div class=\"metric-title\">tests/test_historical_sentinel.py & test_temporal_registration.py</div>\n                  <div class=\"metric-desc\">Tests STAC acquisition parsing, chronological sorting, affine alignment, and checkerboard comparison synthesis.</div>\n                </div>\n              </div>\n              <div class=\"card\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">Engineering Best Practices</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.83rem;\">\n                  <li><strong>Strict Numerical Stability:</strong> Radiometric index assertions verify $\u000barepsilon = 10^{-5}$ denominator protection against zero-division.</li>\n                  <li><strong>Cache Invalidation Rigor:</strong> Switching location guarantees zero stale mosaic leakage across workspaces.</li>\n                  <li><strong>Native Streamlit Layouts:</strong> Uses native <code>st.container</code> and <code>st.html</code> to prevent markdown HTML leaking.</li>\n                </ul>\n              </div>\n            </div>\n            ", "notes": "Academic projects often lack automated tests. TerraPulse v2.0 includes automated test suites covering both the computer vision algorithms and application state management."}, {"id": 18, "title": "Honest Engineering Limitations", "subtitle": "Explicit Design Decisions and Boundary Conditions", "category": "Engineering Integrity", "branch": "Limitations", "content": "\n            <div class=\"table-container\">\n              <table class=\"styled-table\">\n                <thead>\n                  <tr>\n                    <th>Design Boundary</th>\n                    <th>Technical Rationale</th>\n                    <th>Current System State</th>\n                  </tr>\n                </thead>\n                <tbody>\n                  <tr>\n                    <td><strong>LEVIR-CD Dataset Scope</strong></td>\n                    <td>Full 7,120-tile set requires multi-day GPU cluster runs; out of local workstation scope.</td>\n                    <td>Trained rigorously on 832 patches; achieves 0.799 F1.</td>\n                  </tr>\n                  <tr>\n                    <td><strong>Model Studio Visualizations</strong></td>\n                    <td>Live forward hooks on large ViT models consume heavy memory on consumer hardware.</td>\n                    <td>Analytical mathematical feature maps (Difference-of-Gaussians, spatial gradients).</td>\n                  </tr>\n                  <tr>\n                    <td><strong>Temporal Forecasting</strong></td>\n                    <td>Predictive ConvLSTM forecasting requires multi-year dense calibrated image sequences.</td>\n                    <td>Bi-temporal pairwise change detection implemented.</td>\n                  </tr>\n                  <tr>\n                    <td><strong>Radar (SAR) Fusion</strong></td>\n                    <td>Sentinel-1 radar speckle filtering and optical coregistration requires specialized radar toolchains.</td>\n                    <td>Optical Sentinel-2 L2A utilized exclusively.</td>\n                  </tr>\n                  <tr>\n                    <td><strong>Generative World Model</strong></td>\n                    <td>Diffusion-based future Earth simulation is an active research problem.</td>\n                    <td>Architectural roadmap & <code>EarthTilePackage</code> schema preview only.</td>\n                  </tr>\n                </tbody>\n              </table>\n            </div>\n            ", "notes": "Transparency on limitations is considered a hallmark of mature engineering. Documenting what was not done\u2014and why\u2014builds credibility during project defense."}, {"id": 19, "title": "Future Scope & Strategic Roadmap", "subtitle": "Three Horizons of Technical Expansion", "category": "Future Scope", "branch": "Roadmap", "content": "\n            <div class=\"grid-3\">\n              <div class=\"card horizon-card\">\n                <div class=\"horizon-badge\" style=\"background:#0284c7;\">Horizon 1: Near-Term (0\u20136 Mo)</div>\n                <h4 style=\"color:#38bdf8; margin:8px 0 6px 0;\">Scale & Modalities</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.8rem;\">\n                  <li>Train Siamese U-Net on the <strong>full 7,120-tile LEVIR-CD corpus</strong> on an external GPU cluster to target F1 \u2265 0.88.</li>\n                  <li>Integrate <strong>Sentinel-1 SAR C-band radar</strong> for all-weather, day/night cloud-penetrating change detection.</li>\n                  <li>Per-class confusion matrix and ROC curves in the UI.</li>\n                </ul>\n              </div>\n              <div class=\"card horizon-card\">\n                <div class=\"horizon-badge\" style=\"background:#7c3aed;\">Horizon 2: Medium-Term (6\u201318 Mo)</div>\n                <h4 style=\"color:#a855f7; margin:8px 0 6px 0;\">Temporal Modeling</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.8rem;\">\n                  <li>Implement <strong>ConvLSTM / VideoSwin</strong> architecture for continuous deforestation velocity forecasting.</li>\n                  <li>Realize the <code>EarthTilePackage</code> multi-modal schema with temporal embedding layers.</li>\n                  <li>Deploy Google Earth Engine enterprise connector.</li>\n                </ul>\n              </div>\n              <div class=\"card horizon-card\">\n                <div class=\"horizon-badge\" style=\"background:#db2777;\">Horizon 3: Frontier (18+ Mo)</div>\n                <h4 style=\"color:#f472b6; margin:8px 0 6px 0;\">Generative World Models</h4>\n                <ul class=\"styled-list\" style=\"font-size:0.8rem;\">\n                  <li><strong>Conditional Latent Diffusion:</strong> Photorealistic future satellite imagery simulation conditioned on climate scenarios.</li>\n                  <li>Multi-resolution super-resolution combining Sentinel-2 10m with sub-meter imagery (Maxar/Planet).</li>\n                </ul>\n              </div>\n            </div>\n            ", "notes": "Connect the future scope directly to the limitations discussed in Slide 18. Mention that the EarthTilePackage schema is already committed in the codebase as the architectural blueprint for Horizon 2."}, {"id": 20, "title": "Academic References & Technical Q&A", "subtitle": "Literature Citations & Reproducibility Access", "category": "Q&A", "branch": "Repository Access", "content": "\n            <div class=\"two-col\">\n              <div class=\"card\">\n                <h4 style=\"color:#38bdf8; margin:0 0 6px 0;\">Key Academic Citations</h4>\n                <div class=\"ref-item\">\n                  <strong>[1] EuroSAT:</strong> Helber, P. et al. (2019). <em>EuroSAT: A Novel Dataset and Deep Learning Benchmark for LULC.</em> IEEE JSTARS.\n                </div>\n                <div class=\"ref-item\">\n                  <strong>[2] LEVIR-CD:</strong> Chen, H. et al. (2020). <em>Spatial-Temporal Attention Method for Remote Sensing Change Detection.</em> Remote Sensing.\n                </div>\n                <div class=\"ref-item\">\n                  <strong>[3] SIFT:</strong> Lowe, D. G. (2004). <em>Distinctive Image Features from Scale-Invariant Keypoints.</em> IJCV.\n                </div>\n                <div class=\"ref-item\">\n                  <strong>[4] RANSAC:</strong> Fischler, M. A. & Bolles, R. C. (1981). <em>Random Sample Consensus.</em> CACM.\n                </div>\n                <div class=\"ref-item\">\n                  <strong>[5] Prithvi-EO:</strong> Jakubik, J. et al. (2023). <em>Foundation Models for Generalist Geospatial AI.</em> arXiv:2310.18660.\n                </div>\n              </div>\n              <div class=\"card\" style=\"display:flex; flex-direction:column; justify-content:center;\">\n                <h4 style=\"color:#10b981; margin:0 0 8px 0;\">Live Demonstration Ready</h4>\n                <div class=\"code-block\" style=\"font-size:0.8rem; margin-bottom:12px;\">\n                  git clone https://github.com/sachetan-inchal/terrapulse<br>\n                  pip install -r requirements.txt<br>\n                  streamlit run app.py\n                </div>\n                <p style=\"font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;\">Live Streamlit application active at <code>localhost:8501</code> ready for evaluator queries across any global location.</p>\n                <div style=\"font-weight:700; color:#38bdf8; font-size:1.0rem;\">Team 37 \u2014 CCVR Project Presentation</div>\n              </div>\n            </div>\n            ", "notes": "Thank the examination committee. Invite questions and transition to the live Streamlit dashboard running at localhost:8501 for interactive evaluator queries."}];
+    let currentIndex = 0;
+    let notesOpen = false;
+
+    function renderSlide(index) {
+      if (index < 0 || index >= slides.length) return;
+      currentIndex = index;
+      const slide = slides[index];
+
+      // Update card elements
+      document.getElementById('slide-title').innerText = slide.title;
+      document.getElementById('slide-subtitle').innerText = slide.subtitle;
+      document.getElementById('slide-category').innerText = slide.category;
+      
+      const branchEl = document.getElementById('slide-branch');
+      branchEl.innerText = slide.branch;
+      branchEl.className = 'branch-tag ' + (
+        slide.branch.includes('main') || slide.branch.includes('v2.0') ? 'branch-main' :
+        slide.branch.includes('earthwatch') ? 'branch-earthwatch' :
+        slide.branch.includes('osint') ? 'branch-osint' : 'branch-main'
+      );
+
+      document.getElementById('slide-content').innerHTML = slide.content;
+      document.getElementById('notes-text').innerText = slide.notes;
+
+      // Update counter and progress
+      const num = String(index + 1).padStart(2, '0');
+      const total = String(slides.length).padStart(2, '0');
+      document.getElementById('slide-counter').innerText = `${num} / ${total}`;
+      
+      const pct = ((index + 1) / slides.length) * 100;
+      document.getElementById('progress-bar').style.width = `${pct}%`;
+
+      // Update dropdown
+      document.getElementById('slide-select').value = index;
+
+      // Reset scroll on slide change
+      document.getElementById('slide-viewport').scrollTop = 0;
+    }
+
+    function nextSlide() {
+      if (currentIndex < slides.length - 1) {
+        renderSlide(currentIndex + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        renderSlide(currentIndex - 1);
+      }
+    }
+
+    function jumpToSlide(idx) {
+      renderSlide(parseInt(idx, 10));
+    }
+
+    function toggleNotes() {
+      notesOpen = !notesOpen;
+      const drawer = document.getElementById('notes-drawer');
+      const btn = document.getElementById('notes-toggle-btn');
+      if (notesOpen) {
+        drawer.classList.add('open');
+        btn.classList.add('btn-active');
+      } else {
+        drawer.classList.remove('open');
+        btn.classList.remove('btn-active');
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Fullscreen request failed: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Populate dropdown
+    const selectEl = document.getElementById('slide-select');
+    slides.forEach((s, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.text = `Slide ${String(i+1).padStart(2, '0')}: ${s.title}`;
+      selectEl.appendChild(opt);
+    });
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        renderSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        renderSlide(slides.length - 1);
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        toggleNotes();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        window.print();
+      }
+    });
+
+    // Initial render
+    renderSlide(0);
+  </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
-import torch
+import pytest
+torch = pytest.importorskip("torch", reason="PyTorch is not installed in this Python environment")
 
 from src.models.classifier import build_classifier
 from src.models.change_net import SiameseUNet

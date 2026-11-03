@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'leaflet/dist/leaflet.css';
 
 @tailwind base;
 @tailwind components;
@@ -11,45 +12,88 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #040711;
-  color: #f8fafc;
-  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  background-color: #030712;
+  color: #f1f5f9;
+  font-family: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
   overflow-x: hidden;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(10, 16, 36, 0.6);
+  background: rgba(3, 7, 18, 0.8);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.25);
-  border-radius: 4px;
+  background: rgba(34, 211, 238, 0.2);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.5);
+  background: rgba(34, 211, 238, 0.45);
 }
 
-/* Glassmorphism styling */
+/* Glassmorphism platform cards */
 .glass-panel {
-  background: rgba(10, 16, 36, 0.72);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(0, 240, 255, 0.14);
+  background: rgba(6, 11, 23, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
+.glass-panel-subtle {
+  background: rgba(10, 16, 36, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
 .glass-panel-hover:hover {
-  border-color: rgba(0, 240, 255, 0.35);
-  box-shadow: 0 4px 20px -2px rgba(0, 240, 255, 0.12);
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow: 0 4px 24px -2px rgba(34, 211, 238, 0.18), inset 0 0 12px rgba(34, 211, 238, 0.04);
 }
 
-/* Radial Radar Glow */
-.radar-grid {
-  background-size: 32px 32px;
+/* Radar & Orbital Telemetry Grid */
+.telemetry-grid {
+  background-size: 28px 28px;
   background-image: 
-    linear-gradient(to right, rgba(0, 240, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.035) 1px, transparent 1px);
+}
+
+.orbit-glow {
+  box-shadow: 0 0 50px -5px rgba(14, 165, 233, 0.3), inset 0 0 30px rgba(14, 165, 233, 0.15);
+}
+
+/* Pulse Glow Keyframes */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 4s ease-in-out infinite;
+}
+
+/* Leaflet dark theme override */
+.leaflet-container {
+  background: #030712 !important;
+  font-family: inherit !important;
+}
+
+.leaflet-bar a {
+  background-color: rgba(6, 11, 23, 0.9) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+}
+.leaflet-bar a:hover {
+  background-color: #0f172a !important;
+  color: #00f0ff !important;
 }

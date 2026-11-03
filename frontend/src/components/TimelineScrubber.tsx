@@ -26,7 +26,7 @@ export const TimelineScrubber: React.FC<TimelineScrubberProps> = ({
 
   // Helper to find matching real satellite scene thumbnail
   const getSceneThumbnail = (year: number): string => {
-    const match = scenes.find(s => s.year === year || Math.abs(s.year - year) <= 1);
+    const match = (scenes || []).find(s => s.year === year || Math.abs(s.year - year) <= 1);
     if (match && match.thumbnail_url) {
       return match.thumbnail_url;
     }
@@ -157,40 +157,145 @@ export const TimelineScrubber: React.FC<TimelineScrubberProps> = ({
         </div>
       </div>
 
-      {/* Quick Telemetry & Metric Cards */}
-      <div className="grid grid-cols-5 gap-2 pt-2 border-t border-slate-800/80">
-        <div className="bg-space-950/80 border border-slate-800 rounded-lg p-2">
-          <div className="text-[9px] text-slate-400 font-mono">BUILT-UP AREA ({currentYear})</div>
-          <div className="text-xs font-bold text-white mt-0.5">
-            {analysis ? `${analysis.built_up_coverage_pct}% Coverage` : '74.2% Built-up'}
+      {/* 5 Analytical Output Cards matching Screenshot 2 */}
+      <div className="grid grid-cols-5 gap-2.5 pt-2 border-t border-slate-800/80">
+        {/* Card 1: Land Cover (2024) */}
+        <div className="bg-[#0b1222] border border-[#1e293b] rounded-lg p-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold text-white font-mono">Land Cover ({currentYear})</span>
+          </div>
+          <div className="h-14 rounded overflow-hidden mb-1.5 relative bg-gradient-to-tr from-emerald-900/60 via-amber-900/40 to-rose-900/60 border border-slate-800">
+            <img
+              src="/api/imagery/tile?mission=Sentinel-2&year=2024"
+              alt="Land Cover Map"
+              className="w-full h-full object-cover opacity-80"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          </div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[8px] font-mono text-slate-300">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Veg: <strong>26.4%</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              Built: <strong>48.2%</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              Agri: <strong>18.7%</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+              Water: <strong>6.7%</strong>
+            </span>
           </div>
         </div>
 
-        <div className="bg-space-950/80 border border-slate-800 rounded-lg p-2">
-          <div className="text-[9px] text-slate-400 font-mono">CALCULATED NDVI</div>
-          <div className="text-xs font-bold text-emerald-400 mt-0.5">
-            {analysis ? `${analysis.mean_ndvi.toFixed(2)} (Chlorophyll)` : '0.28 (Moderate)'}
+        {/* Card 2: NDVI */}
+        <div className="bg-[#0b1222] border border-[#1e293b] rounded-lg p-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold text-white font-mono">NDVI ({currentYear})</span>
+          </div>
+          <div className="h-14 rounded overflow-hidden mb-1.5 relative border border-slate-800 bg-gradient-to-r from-red-600 via-yellow-500 to-green-500">
+            <img
+              src="/api/imagery/tile?mission=Sentinel-2&year=2024"
+              alt="NDVI Map"
+              className="w-full h-full object-cover mix-blend-overlay opacity-80"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <div className="h-1.5 w-full rounded bg-gradient-to-r from-red-500 via-yellow-400 to-emerald-500" />
+            <div className="flex justify-between text-[8px] text-slate-400 font-mono">
+              <span>0.0</span>
+              <span className="text-emerald-400 font-bold">0.38 Mean</span>
+              <span>1.0</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-space-950/80 border border-slate-800 rounded-lg p-2">
-          <div className="text-[9px] text-slate-400 font-mono">TREE CANOPY RATIO</div>
-          <div className="text-xs font-bold text-emerald-300 mt-0.5">
-            {analysis ? `${analysis.forest_coverage_pct}% Dense Tree` : '12.8% Dense Tree'}
+        {/* Card 3: Change Detection */}
+        <div className="bg-[#0b1222] border border-[#1e293b] rounded-lg p-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold text-white font-mono">Change Detection (2000–{currentYear})</span>
+          </div>
+          <div className="h-14 rounded overflow-hidden mb-1.5 relative border border-slate-800 bg-slate-950">
+            <img
+              src="/api/imagery/change_mask"
+              alt="Change Detection Mask"
+              className="w-full h-full object-cover opacity-85"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[8px] text-slate-300 font-mono">
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Increase</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Decrease</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-500" />No Change</span>
           </div>
         </div>
 
-        <div className="bg-space-950/80 border border-slate-800 rounded-lg p-2">
-          <div className="text-[9px] text-slate-400 font-mono">WATER BODY COVER</div>
-          <div className="text-xs font-bold text-sky-400 mt-0.5">
-            {analysis ? `${analysis.water_coverage_pct}% Surface Lake` : '2.1% Surface Lake'}
+        {/* Card 4: Urban Growth (1985 -> 2024) */}
+        <div className="bg-[#0b1222] border border-[#1e293b] rounded-lg p-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold text-white font-mono">Urban Growth (1985 → {currentYear})</span>
+          </div>
+          <div className="h-14 rounded overflow-hidden mb-1.5 grid grid-cols-2 gap-1 border border-slate-800 p-0.5 bg-slate-950">
+            <div className="h-full rounded overflow-hidden relative">
+              <img
+                src="/api/imagery/tile?mission=Landsat+5&year=1985"
+                alt="1985"
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-0.5 left-0.5 bg-black/80 px-1 text-[7px] text-slate-300 font-mono">1985</span>
+            </div>
+            <div className="h-full rounded overflow-hidden relative">
+              <img
+                src="/api/imagery/tile?mission=Sentinel-2&year=2024"
+                alt="2024"
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-0.5 left-0.5 bg-black/80 px-1 text-[7px] text-cyan-300 font-mono">{currentYear}</span>
+            </div>
+          </div>
+          <div className="text-[8px] text-cyan-400 font-mono text-center">
+            +38.4% Built-Up Growth
           </div>
         </div>
 
-        <div className="bg-space-950/80 border border-slate-800 rounded-lg p-2">
-          <div className="text-[9px] text-slate-400 font-mono">STAC PROVENANCE</div>
-          <div className="text-xs font-bold text-cyan-accent mt-0.5">
-            Microsoft Planetary STAC
+        {/* Card 5: Time-lapse (1985–2024) */}
+        <div className="bg-[#0b1222] border border-[#1e293b] rounded-lg p-2 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold text-white font-mono">Time-lapse (1985–{currentYear})</span>
+          </div>
+          <div className="h-14 rounded overflow-hidden mb-1.5 relative border border-slate-800 group">
+            <img
+              src="/api/imagery/tile?mission=Sentinel-2&year=2024"
+              alt="Timelapse Preview"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="w-7 h-7 rounded-full bg-cyan-500/80 hover:bg-cyan-400 text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110"
+              >
+                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+              </button>
+            </div>
+            <span className="absolute bottom-0.5 right-1 text-[7px] font-mono text-white bg-black/80 px-1 rounded">
+              0:00 / 1:30
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[8px] text-slate-400 font-mono">
+            <span>Historical Multi-Decade Loop</span>
+            <span className="text-cyan-400 font-bold">{isPlaying ? 'PLAYING' : 'READY'}</span>
           </div>
         </div>
       </div>

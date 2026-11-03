@@ -1,0 +1,101 @@
+site_name: GeoAgent
+site_description: An AI agent for geospatial data analysis and visualization
+site_author: Qiusheng Wu
+site_url: https://geoagent.gishub.org
+repo_url: https://github.com/opengeos/GeoAgent
+
+copyright: "Copyright &copy; 2026 Qiusheng Wu"
+
+theme:
+    palette:
+        - scheme: default
+          primary: blue
+          accent: indigo
+          toggle:
+              icon: material/toggle-switch-off-outline
+              name: Switch to dark mode
+        - scheme: slate
+          primary: indigo
+          accent: indigo
+          toggle:
+              icon: material/toggle-switch
+              name: Switch to light mode
+    name: material
+    icon:
+        repo: fontawesome/brands/github
+    features:
+        - navigation.instant
+        - navigation.tracking
+        - navigation.top
+        - search.highlight
+        - search.share
+        - content.code.copy
+    custom_dir: "docs/overrides"
+    font:
+        text: Google Sans
+        code: Regular
+
+plugins:
+    - search
+    - mkdocstrings:
+        handlers:
+            python:
+                options:
+                    show_source: true
+                    show_root_heading: true
+                    heading_level: 3
+    - git-revision-date
+    - git-revision-date-localized:
+          enable_creation_date: true
+          type: timeago
+    - mkdocs-jupyter:
+          include_source: true
+          ignore_h1_titles: true
+          execute: false
+          allow_errors: false
+          ignore: ["conf.py"]
+          execute_ignore: ["*ignore.ipynb"]
+
+markdown_extensions:
+    - admonition
+    - abbr
+    - attr_list
+    - def_list
+    - footnotes
+    - meta
+    - md_in_html
+    - pymdownx.superfences
+    - pymdownx.highlight:
+          linenums: true
+    - pymdownx.tabbed:
+          alternate_style: true
+    - toc:
+          permalink: true
+
+nav:
+    - Home: index.md
+    - Installation: installation.md
+    - Usage: usage.md
+    - QGIS Plugin: qgis-plugin.md
+    - Changelog: https://github.com/opengeos/GeoAgent/releases
+    - Report Issues: https://github.com/opengeos/GeoAgent/issues
+    - Contributing: contributing.md
+    - Examples:
+        - examples/intro.ipynb
+        - examples/openai_codex.ipynb
+        - examples/stream_chat_openai_codex.ipynb
+        - examples/live_mapping.ipynb
+        - examples/qgis_agent.ipynb
+        - examples/stac_workflow.ipynb
+    - API Reference:
+        - GeoAgent: geoagent.md
+        - Factory: factory.md
+        - Model: model.md
+        - Context: context.md
+        - Result: result.md
+        - Decorators: decorators.md
+        - Registry: registry.md
+        - Safety: safety.md
+        - System Prompts: prompts.md
+        - Tools: tools.md
+        - Web UI: ui.md

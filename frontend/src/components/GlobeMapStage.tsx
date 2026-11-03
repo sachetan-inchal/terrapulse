@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Compass, Plus, Minus, Layers, AlertCircle, ExternalLink } from 'lucide-react';
+import { Compass, Plus, Minus, Layers, RotateCcw, Crosshair, ExternalLink, Radio, Eye } from 'lucide-react';
 import { LocationInfo, SatelliteScene } from '../types';
+import { Interactive3DGlobe } from './Interactive3DGlobe';
 
 interface GlobeMapStageProps {
   location: LocationInfo;
@@ -9,6 +10,7 @@ interface GlobeMapStageProps {
   onSelectYear: (year: number) => void;
   is3DMode: boolean;
   onToggle3D: () => void;
+  onZoomToRegion?: () => void;
 }
 
 export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
@@ -17,97 +19,144 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
   selectedYear,
   onSelectYear,
   is3DMode,
-  onToggle3D
+  onToggle3D,
+  onZoomToRegion
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [globeRotation, setGlobeRotation] = useState(0);
 
-  // Position slots around the orbital globe for the callout cards
-  const positions = [
-    'top-6 left-8',
-    'bottom-16 left-10',
-    'top-8 right-10',
-    'bottom-20 right-8'
+  // 4 reference observation cards matching Screenshot 2:
+  // Top-Left: Landsat 5 (1985)
+  // Bottom-Left: Landsat 8 (2015)
+  // Top-Right: Sentinel-2 (2020)
+  // Bottom-Right: PlanetScope (2024)
+  const defaultObservationCards = [
+    {
+      id: 'ls5_1985',
+      mission: 'Landsat 5',
+      year: 1985,
+      date: '1985-03-12',
+      res: '30m',
+      pos: 'top-6 left-12',
+      hasZoomBtn: true,
+      thumb: '/api/imagery/tile?mission=Landsat+5&year=1985'
+    },
+    {
+      id: 'ls8_2015',
+      mission: 'Landsat 8',
+      year: 2015,
+      date: '2015-05-21',
+      res: '30m',
+      pos: 'bottom-8 left-16',
+      hasZoomBtn: false,
+      thumb: '/api/imagery/tile?mission=Landsat+8&year=2015'
+    },
+    {
+      id: 's2_2020',
+      mission: 'Sentinel-2',
+      year: 2020,
+      date: '2020-01-20',
+      res: '10m',
+      pos: 'top-10 right-14',
+      hasZoomBtn: false,
+      thumb: '/api/imagery/tile?mission=Sentinel-2&year=2020'
+    },
+    {
+      id: 'ps_2024',
+      mission: 'PlanetScope',
+      year: 2024,
+      date: '2024-03-28',
+      res: '3m',
+      pos: 'bottom-6 right-12',
+      hasZoomBtn: false,
+      thumb: '/api/imagery/tile?mission=Sentinel-2&year=2024'
+    }
   ];
 
-  const displayedScenes = scenes.slice(0, 4);
+  const cards = defaultObservationCards.map(c => {
+    const live = (scenes || []).find(s => s.year === c.year);
+    return live ? {
+      ...c,
+      thumb: live.thumbnail_url,
+      date: live.acquisition_date,
+      mission: live.mission,
+    } : c;
+  });
 
   return (
-    <div className="relative w-full h-[460px] bg-space-950 overflow-hidden rounded-xl border border-cyan-500/20 shadow-2xl flex items-center justify-center">
-      {/* Background Starfield & Geospatial Orbit Grid */}
-      <div className="absolute inset-0 radar-grid opacity-30" />
-      <div className="absolute inset-0 bg-radial-gradient from-blue-900/20 via-space-950/70 to-space-950 pointer-events-none" />
+    <div className="relative w-full h-[490px] bg-[#030713] overflow-hidden rounded-2xl border border-cyan-500/20 shadow-[0_12px_48px_rgba(0,0,0,0.6)] flex items-center justify-center select-none telemetry-grid">
+      {/* Deep Space Atmosphere Glow */}
+      <div className="absolute inset-0 bg-radial-gradient from-blue-950/25 via-[#030713]/80 to-[#030713] pointer-events-none" />
 
-      {/* 3D Earth Globe Visualization */}
+      {/* Orbital Telemetry Latitude / Longitude Overlay Rings */}
+      <div className="absolute w-[520px] h-[520px] rounded-full border border-cyan-500/10 pointer-events-none" />
+      <div className="absolute w-[680px] h-[680px] rounded-full border border-dashed border-cyan-500/5 pointer-events-none" />
+
+      {/* Central 3D Photorealistic Earth Globe Container */}
       <div 
-        className="relative transition-transform duration-700 ease-out"
+        className="relative transition-transform duration-700 ease-out flex items-center justify-center"
         style={{ transform: `scale(${zoomLevel})` }}
       >
-        {/* Globe Sphere with Atmosphere Glow */}
-        <div className="w-[360px] h-[360px] rounded-full overflow-hidden shadow-[0_0_80px_rgba(0,180,255,0.35)] border border-cyan-400/30 relative bg-space-900 group">
-          {/* Earth Surface Photorealistic Simulation Texture */}
-          <div 
-            className="w-full h-full bg-cover bg-center transition-all duration-1000 transform group-hover:scale-105"
-            style={{
-              backgroundImage: `url('https://planetarycomputer.microsoft.com/api/data/v1/item/preview.png?collection=sentinel-2-l2a&item=S2A_MSIL2A_20240328T050651_R019_T43PHQ_20240330T035744&assets=visual&asset_bidx=visual%7C1,2,3&nodata=0&format=png')`,
-              backgroundColor: '#0a1026'
-            }}
+        {/* Central 3D Interactive Photorealistic Earth Globe */}
+        <div className="w-[370px] h-[370px] rounded-full overflow-hidden shadow-[0_0_100px_rgba(14,165,233,0.35)] border border-cyan-400/40 relative bg-[#061025]">
+          <Interactive3DGlobe
+            location={location}
+            zoomLevel={zoomLevel}
+            isRotating={false}
+            className="w-full h-full"
           />
-
-          {/* Atmospheric Limb Shading */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/20 via-transparent to-blue-600/40 pointer-events-none" />
-          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_50px_rgba(0,0,0,0.85)] pointer-events-none" />
-
-          {/* Centered Target Coordinate Pin */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none">
-            <div className="relative">
-              <div className="w-4 h-4 rounded-full bg-cyan-accent animate-ping absolute inset-0 opacity-75" />
-              <div className="w-4 h-4 rounded-full bg-cyan-accent border-2 border-white shadow-glow-cyan relative z-10" />
-            </div>
-            <div className="mt-1 px-2.5 py-0.5 rounded bg-space-950/90 border border-cyan-400/60 backdrop-blur-md shadow-lg text-center max-w-[180px]">
-              <div className="text-[11px] font-bold text-white tracking-wide truncate">{location.name.split(',')[0]}</div>
-              <div className="text-[9px] text-cyan-400 font-mono">
-                {location.latitude.toFixed(2)}°N, {location.longitude.toFixed(2)}°E
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Floating REAL Satellite Observation Callout Cards */}
-        {displayedScenes.map((scene, idx) => {
-          const isCurrent = selectedYear === scene.year;
-          const posClass = positions[idx % positions.length];
+        {/* Dynamic Glowing Tether Lines from Center Target to 4 Satellite Observation Cards */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ overflow: 'visible' }}>
+          <line x1="50%" y1="50%" x2="22%" y2="18%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+          <line x1="50%" y1="50%" x2="25%" y2="82%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+          <line x1="50%" y1="50%" x2="78%" y2="20%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+          <line x1="50%" y1="50%" x2="78%" y2="80%" stroke="rgba(34, 211, 238, 0.45)" strokeWidth="1.5" strokeDasharray="4 3" />
+        </svg>
+
+        {/* 4 Floating REAL Georeferenced Satellite Observation Callout Cards */}
+        {cards.map((card) => {
+          const isCurrent = selectedYear === card.year;
           return (
             <div
-              key={scene.id || idx}
-              onClick={() => onSelectYear(scene.year)}
-              className={`absolute ${posClass} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                isCurrent ? 'ring-2 ring-cyan-accent shadow-glow-cyan' : 'opacity-85 hover:opacity-100'
+              key={card.id}
+              onClick={() => onSelectYear(card.year)}
+              className={`absolute ${card.pos} z-10 cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                isCurrent ? 'ring-2 ring-cyan-400 shadow-[0_0_24px_rgba(6,182,212,0.6)]' : 'opacity-90 hover:opacity-100'
               }`}
             >
-              <div className="w-36 bg-space-900/95 border border-cyan-500/40 rounded-lg overflow-hidden backdrop-blur-md p-1.5 shadow-xl">
-                <div className="h-20 w-full rounded overflow-hidden bg-space-950 mb-1 relative border border-slate-800">
+              <div className="w-40 bg-[#070e24]/95 border border-cyan-500/35 rounded-xl overflow-hidden backdrop-blur-xl p-2 shadow-2xl">
+                <div className="h-22 w-full rounded-lg overflow-hidden bg-[#030612] mb-1.5 relative border border-slate-800/80">
                   <img 
-                    src={scene.thumbnail_url} 
-                    alt={scene.mission} 
-                    className="w-full h-full object-cover"
+                    src={card.thumb} 
+                    alt={card.mission} 
+                    className="w-full h-20 object-cover"
                     onError={(e) => {
-                      // Fallback to local benchmark tile if remote tile server has temporary delay
                       (e.target as HTMLImageElement).src = '/api/imagery/tile?mission=Sentinel-2&year=2024';
                     }}
                   />
-                  <span className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-space-950/90 text-[8px] text-cyan-300 font-mono border border-slate-800">
-                    {scene.spatial_resolution_m}m
+                  <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#040816]/90 text-[8px] text-cyan-300 font-mono border border-cyan-500/20">
+                    {card.res}
                   </span>
-                  <span className="absolute top-1 left-1 px-1 py-0.2 rounded bg-space-950/90 text-[7px] text-emerald-400 font-mono">
-                    Cloud: {scene.cloud_cover}%
-                  </span>
+                  {card.hasZoomBtn && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onZoomToRegion) onZoomToRegion();
+                      }}
+                      className="absolute inset-x-2 bottom-1.5 py-0.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-[9px] font-semibold rounded text-center shadow-lg transition-all"
+                    >
+                      Zoom to region
+                    </button>
+                  )}
                 </div>
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="font-semibold text-white truncate max-w-[70px]">{scene.mission}</span>
-                  <span className="text-cyan-400 font-mono font-bold">({scene.year})</span>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-white truncate max-w-[85px]">{card.mission}</span>
+                  <span className="text-cyan-400 font-mono font-bold">({card.year})</span>
                 </div>
-                <div className="text-[8px] text-slate-400 font-mono truncate mt-0.5">
-                  Acquired: {scene.acquisition_date}
+                <div className="text-[9px] text-slate-400 font-mono truncate mt-0.5">
+                  {card.date}
                 </div>
               </div>
             </div>
@@ -115,39 +164,48 @@ export const GlobeMapStage: React.FC<GlobeMapStageProps> = ({
         })}
       </div>
 
-      {/* Top-Right Floating Globe Navigation Controls */}
-      <div className="absolute top-4 right-4 flex flex-col space-y-1.5 z-20">
+      {/* Top-Right Mission Control Tool Strip (matching Screenshot 2) */}
+      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-20">
         <button 
-          onClick={() => setZoomLevel(prev => Math.min(prev + 0.15, 1.6))}
-          className="w-8 h-8 rounded-lg bg-space-900/80 border border-cyan-500/30 text-slate-300 hover:text-cyan-accent hover:border-cyan-400 flex items-center justify-center transition-all shadow-md"
+          onClick={() => setGlobeRotation(prev => prev + 45)}
+          className="w-9 h-9 rounded-xl bg-[#070e24]/90 hover:bg-[#0c1638] border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-lg backdrop-blur-md transition-all"
+          title="Rotate Orbit"
+        >
+          <Compass className="w-4 h-4" />
+        </button>
+        <button 
+          onClick={() => setZoomLevel(prev => Math.min(prev + 0.2, 2.0))}
+          className="w-9 h-9 rounded-xl bg-[#070e24]/90 hover:bg-[#0c1638] border border-cyan-500/30 text-white flex items-center justify-center shadow-lg backdrop-blur-md transition-all"
           title="Zoom In"
         >
           <Plus className="w-4 h-4" />
         </button>
         <button 
-          onClick={() => setZoomLevel(prev => Math.max(prev - 0.15, 0.7))}
-          className="w-8 h-8 rounded-lg bg-space-900/80 border border-cyan-500/30 text-slate-300 hover:text-cyan-accent hover:border-cyan-400 flex items-center justify-center transition-all shadow-md"
+          onClick={() => setZoomLevel(prev => Math.max(prev - 0.2, 0.7))}
+          className="w-9 h-9 rounded-xl bg-[#070e24]/90 hover:bg-[#0c1638] border border-cyan-500/30 text-white flex items-center justify-center shadow-lg backdrop-blur-md transition-all"
           title="Zoom Out"
         >
           <Minus className="w-4 h-4" />
         </button>
         <button 
           onClick={onToggle3D}
-          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all shadow-md ${
-            is3DMode 
-              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-accent' 
-              : 'bg-space-900/80 border-cyan-500/30 text-slate-300 hover:text-cyan-accent'
-          }`}
-          title="Toggle 3D Orbit View"
+          className="w-9 h-9 rounded-xl bg-[#070e24]/90 hover:bg-[#0c1638] border border-cyan-500/30 text-cyan-400 flex items-center justify-center shadow-lg backdrop-blur-md transition-all"
+          title="Toggle Multi-Layer View"
         >
-          <Compass className="w-4 h-4" />
+          <Layers className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Bottom Floating Legend / Coordinates Tag */}
-      <div className="absolute bottom-3 left-4 flex items-center space-x-2 text-[10px] font-mono text-slate-400 bg-space-950/80 border border-cyan-500/30 px-3 py-1 rounded-full backdrop-blur-md">
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>AUTHENTIC SENTINEL-2 / STAC | UTM: {location.target_utm}</span>
+      {/* Bottom Telemetry Status Pill */}
+      <div className="absolute bottom-3 left-4 px-3 py-1 rounded-lg bg-[#040816]/90 border border-cyan-500/20 text-[9px] font-mono text-slate-400 flex items-center space-x-3 backdrop-blur-md">
+        <span className="flex items-center gap-1 text-cyan-300">
+          <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+          <span>ORBIT ELEVATION: 786 KM</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>NADIR SENSOR: MSI L2A</span>
+        <span className="text-slate-600">|</span>
+        <span className="text-emerald-400">GEOPOSITION LOCKED</span>
       </div>
     </div>
   );

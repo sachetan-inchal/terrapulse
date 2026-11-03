@@ -13,18 +13,37 @@ from PIL import Image
 import pystac_client
 import planetary_computer
 
-from backend.services.geocoding import geocode_location as _geocode_core
+from backend.services.geocoding import geocode_location as _geocode_core, search_locations as _search_core
 
 # In-memory session cache to keep Streamlit UI lightning fast
 _STAC_CACHE: Dict[str, Any] = {}
 
-def geocode_user_location(query: str) -> Dict[str, Any]:
+def search_user_locations(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    Searches for candidate locations matching user query, returning a list of dicts.
+    """
+    items = _search_core(query, limit=limit)
+    return [
+        {
+            "id": loc.id,
+            "name": loc.name,
+            "country": loc.country,
+            "lat": loc.latitude,
+            "lon": loc.longitude,
+            "bbox": loc.bbox,
+            "target_utm": loc.target_utm,
+            "description": loc.description
+        }
+        for loc in items
+    ]
+
+def geocode_user_location(query: str, allow_fallback: bool = True) -> Dict[str, Any]:
     """
     Converts any user-typed query (e.g. 'Bengaluru', 'Tokyo', 'Cairo', 'Paris')
     into exact coordinates, bounding box [min_lon, min_lat, max_lon, max_lat],
     and target UTM projection EPSG code.
     """
-    loc = _geocode_core(query)
+    loc = _geocode_core(query, allow_fallback=allow_fallback)
     return {
         "id": loc.id,
         "name": loc.name,

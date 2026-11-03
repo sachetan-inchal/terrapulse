@@ -1,0 +1,5 @@
+pydantic>=2.0
+pytest>=8.0
+ruff>=0.7
+# CI / editable install: lightweight core + dev tools (see pyproject.toml extras for optional stacks)
+strands-agents>=1.37
