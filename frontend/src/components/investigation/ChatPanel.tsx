@@ -250,16 +250,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     scrollToBottom();
   }, [messages, isInvestigating]);
 
+  const executeSendMessage = (textToSend: string) => {
+    const trimmed = textToSend.trim();
+    if (!trimmed || isInvestigating) return;
+    setInputText('');
+    onSendMessage(trimmed);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || isInvestigating) return;
-    onSendMessage(inputText.trim());
-    setInputText('');
+    executeSendMessage(inputText);
   };
 
   const handleSuggestionClick = (query: string) => {
-    if (isInvestigating) return;
-    onSendMessage(query);
+    executeSendMessage(query);
   };
 
   const suggestedQueries = [
@@ -325,9 +329,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               </div>
               {suggestedQueries.map((sq, i) => (
                 <button
+                  type="button"
                   key={i}
-                  onClick={() => handleSuggestionClick(sq)}
-                  className="w-full text-left p-2 rounded-lg bg-[#070e24] hover:bg-cyan-950/40 border border-cyan-500/15 hover:border-cyan-400/50 text-xs text-slate-300 hover:text-cyan-200 transition-all flex items-center justify-between group shadow-sm"
+                  disabled={isInvestigating}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    executeSendMessage(sq);
+                  }}
+                  className="w-full text-left p-2 rounded-lg bg-[#070e24] hover:bg-cyan-950/40 border border-cyan-500/15 hover:border-cyan-400/50 text-xs text-slate-300 hover:text-cyan-200 transition-all flex items-center justify-between group shadow-sm disabled:opacity-40 cursor-pointer"
                 >
                   <span className="truncate mr-2 font-sans">{sq}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0" />
@@ -470,34 +480,34 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         {/* Dynamic Follow-up Suggestions after Assistant Response */}
         {!isInvestigating && lastMessage && lastMessage.sender === 'agent' && (
           <div className="pt-2 space-y-1.5">
-            <div className="text-[10px] uppercase font-mono tracking-wider text-slate-500 px-1">
-              Recommended Follow-ups:
+            <div className="text-[10px] uppercase font-mono tracking-wider text-slate-500 px-1 flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+              <span>Recommended Follow-ups:</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => handleSuggestionClick("Why are these changes happening?")}
-                className="px-2.5 py-1 rounded-lg bg-[#070e24] hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-400/50 text-[11px] text-cyan-300 transition-colors shadow-sm"
-              >
-                🔍 Why are these changes happening?
-              </button>
-              <button
-                onClick={() => handleSuggestionClick("Show me scientific research supporting this.")}
-                className="px-2.5 py-1 rounded-lg bg-[#070e24] hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-400/50 text-[11px] text-cyan-300 transition-colors shadow-sm"
-              >
-                📚 Show me scientific research
-              </button>
-              <button
-                onClick={() => handleSuggestionClick("What are the likely environmental effects over the next five years?")}
-                className="px-2.5 py-1 rounded-lg bg-[#070e24] hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-400/50 text-[11px] text-cyan-300 transition-colors shadow-sm"
-              >
-                📈 What will happen in five years?
-              </button>
-              <button
-                onClick={() => handleSuggestionClick("Explain your findings in simple language.")}
-                className="px-2.5 py-1 rounded-lg bg-[#070e24] hover:bg-cyan-950/50 border border-cyan-500/20 hover:border-cyan-400/50 text-[11px] text-cyan-300 transition-colors shadow-sm"
-              >
-                💡 Explain in simple language
-              </button>
+              {((lastMessage.suggestions && lastMessage.suggestions.length > 0)
+                ? lastMessage.suggestions
+                : [
+                    "Why is this happening?",
+                    "Show me scientific research.",
+                    "What will happen in five years?",
+                    "Explain in simple language."
+                  ]
+              ).map((sug, idx) => (
+                <button
+                  type="button"
+                  key={idx}
+                  disabled={isInvestigating}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    executeSendMessage(sug);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#070e24] hover:bg-cyan-950/60 border border-cyan-500/25 hover:border-cyan-400/60 text-[11px] text-cyan-300 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 group cursor-pointer"
+                >
+                  <span className="font-sans">{sug}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}

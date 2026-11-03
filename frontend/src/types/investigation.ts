@@ -122,6 +122,7 @@ export interface ChatMessage {
   sender: 'user' | 'agent' | 'system';
   text: string;
   timestamp: string;
+  suggestions?: string[];
   clarification?: {
     slot: string;
     question: string;

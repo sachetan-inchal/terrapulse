@@ -242,6 +242,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               sender: 'agent',
               text: answerText,
               timestamp: timestampStr,
+              suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
               investigationData: data.investigation,
               forecastData: data.forecast,
               geojson: data.geojson || data.map_geojson
