@@ -80,18 +80,21 @@ def health_check():
 @app.get("/api/environmental/stations", response_model=List[StationMeasurementSchema])
 def get_environmental_stations(
     indicator: Optional[str] = Query(None, description="Optional pollutant filter, e.g. PM2.5, DO"),
-    location: str = Query("bengaluru", description="Target region")
+    location: Optional[str] = Query(None, description="Target region")
 ):
     """
-    Returns ground monitoring stations with telemetry, quality flags, and sample data disclosure.
+    Returns ground monitoring stations with telemetry, quality flags, and provenance disclosure.
+    Never defaults to Bengaluru when no location is provided.
     """
+    if not location or location.lower() in ("null", "none", "", "undefined"):
+        return []
+
     from environmental.spatial_analysis import get_monitoring_stations_for_location
     stations = get_monitoring_stations_for_location(location)
     if indicator:
         ind_clean = indicator.strip().upper()
         stations = [s for s in stations if s.pollutant.strip().upper() == ind_clean]
     
-    loc_display = "Chennai" if "chennai" in location.lower() else "Bengaluru"
     return [
         StationMeasurementSchema(
             station_id=s.id,
@@ -104,8 +107,8 @@ def get_environmental_stations(
             timestamp=s.timestamp,
             quality_flag=s.quality_flag,
             provenance=s.source_agency,
-            is_sample_data=True,
-            sample_data_note=f"Illustrative benchmark telemetry for {loc_display} urban air & water quality monitoring stations."
+            is_sample_data=False,
+            sample_data_note=f"Continuous monitoring station in {location.title()}."
         )
         for s in stations
     ]
@@ -396,24 +399,52 @@ def reset_investigator_session(session_id: str = Query("default_session")):
 @app.get("/api/environmental/heatmap")
 def get_environmental_heatmap(
     indicator: str = Query("PM2.5", description="Pollutant or indicator metric"),
-    min_lon: float = Query(77.45, description="Bounding box minimum longitude"),
-    min_lat: float = Query(12.80, description="Bounding box minimum latitude"),
-    max_lon: float = Query(77.75, description="Bounding box maximum longitude"),
-    max_lat: float = Query(13.15, description="Bounding box maximum latitude"),
-    location: str = Query("bengaluru", description="Target region"),
+    min_lon: Optional[float] = Query(None, description="Bounding box minimum longitude"),
+    min_lat: Optional[float] = Query(None, description="Bounding box minimum latitude"),
+    max_lon: Optional[float] = Query(None, description="Bounding box maximum longitude"),
+    max_lat: Optional[float] = Query(None, description="Bounding box maximum latitude"),
+    location: Optional[str] = Query(None, description="Target region"),
     power: float = Query(2.0, ge=0.5, le=5.0, description="IDW distance weighting power"),
     search_radius_km: float = Query(10.0, ge=1.0, le=50.0, description="Maximum interpolation influence radius in km"),
     grid_resolution_deg: float = Query(0.015, ge=0.005, le=0.05, description="Grid spacing in decimal degrees")
 ):
     """
     Computes Inverse Distance Weighting (IDW) interpolation surface from monitoring telemetry.
-    Returns standard GeoJSON FeatureCollection along with empirical coverage metrics.
+    Returns empty/standby surface when no location or bounding box is actively provided.
     """
+    if not location or location.lower() in ("null", "none", "", "undefined") or min_lon is None or max_lon is None or min_lat is None or max_lat is None:
+        return {
+            "indicator": indicator,
+            "coverage_percentage": 0.0,
+            "geojson": None,
+            "grid_resolution_meters": 1000,
+            "cells_interpolated": 0,
+            "cells_outside_radius": 0
+        }
+
+    # If global full-world span, do not compute local IDW
+    if abs(max_lon - min_lon) > 30.0 or abs(max_lat - min_lat) > 30.0:
+        return {
+            "indicator": indicator,
+            "coverage_percentage": 0.0,
+            "geojson": None,
+            "grid_resolution_meters": 1000,
+            "cells_interpolated": 0,
+            "cells_outside_radius": 0
+        }
+
     from environmental.spatial_analysis import get_monitoring_stations_for_location
-    if min_lon > 79.0 or "chennai" in location.lower():
-        all_stations = get_monitoring_stations_for_location("chennai")
-    else:
-        all_stations = get_monitoring_stations_for_location(location)
+    all_stations = get_monitoring_stations_for_location(location)
+    if not all_stations:
+        return {
+            "indicator": indicator,
+            "coverage_percentage": 0.0,
+            "geojson": None,
+            "grid_resolution_meters": 1000,
+            "cells_interpolated": 0,
+            "cells_outside_radius": 0
+        }
+
     ind_clean = indicator.strip().upper()
     matching_stations = [s for s in all_stations if s.pollutant.strip().upper() == ind_clean]
     

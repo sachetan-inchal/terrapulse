@@ -1048,9 +1048,13 @@ def get_preset_delhi_monitoring_stations() -> List[MonitoringStation]:
     ]
 
 
-def get_monitoring_stations_for_location(location: str = "bengaluru") -> List[MonitoringStation]:
-    """Resolves monitoring stations for the requested region without cross-city substitution."""
-    loc_clean = (location or "bengaluru").lower()
+def get_monitoring_stations_for_location(location: Optional[str] = None) -> List[MonitoringStation]:
+    """Resolves monitoring stations for the requested region without cross-city substitution.
+    Returns empty list when no location is selected or stations are unavailable.
+    """
+    if not location or location.lower() in ("null", "none", "", "undefined"):
+        return []
+    loc_clean = location.lower()
     if "chennai" in loc_clean:
         return get_preset_chennai_monitoring_stations()
     if "mumbai" in loc_clean or "bombay" in loc_clean:

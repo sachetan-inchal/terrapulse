@@ -167,16 +167,24 @@ export const GlobalLocationSearch: React.FC<GlobalLocationSearchProps> = ({
         className="flex items-center justify-between px-3.5 py-2 rounded-lg bg-[#070d1e]/90 border border-cyan-500/25 hover:border-cyan-400/60 cursor-pointer transition-all shadow-inner"
       >
         <div className="flex items-center space-x-2.5 overflow-hidden">
-          <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <MapPin className={`w-3.5 h-3.5 shrink-0 ${currentLocation && currentLocation.id ? 'text-cyan-400' : 'text-slate-500'}`} />
           <div className="truncate">
-            <span className="text-xs font-semibold text-white">{currentLocation.name}</span>
-            <span className="text-[10px] text-cyan-400/80 ml-2 font-mono">
-              {currentLocation.latitude.toFixed(4)}°N, {currentLocation.longitude.toFixed(4)}°E
-            </span>
+            {currentLocation && currentLocation.id ? (
+              <>
+                <span className="text-xs font-semibold text-white">{currentLocation.name}</span>
+                <span className="text-[10px] text-cyan-400/80 ml-2 font-mono">
+                  {currentLocation.latitude.toFixed(4)}°N, {currentLocation.longitude.toFixed(4)}°E
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-slate-400 font-mono italic">
+                {placeholder || "Search any global city, lake, mountain, forest or coordinate..."}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center space-x-1.5 ml-2">
-          {renderFeatureBadge(currentLocation.feature_type)}
+          {currentLocation && currentLocation.id && renderFeatureBadge(currentLocation.feature_type)}
           {(isSearching || isSearchingLive) && <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />}
           <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
         </div>

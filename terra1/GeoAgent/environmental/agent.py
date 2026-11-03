@@ -107,6 +107,10 @@ class InvestigationSession:
     last_forecast: Optional[Dict[str, Any]] = None
     last_topic: Optional[str] = None
     last_observations: Optional[Dict[str, Any]] = None
+    last_subject: Optional[str] = None
+    last_subject_location: Optional[str] = None
+    last_subject_coords: Optional[Tuple[float, float]] = None
+    last_subject_bbox: Optional[List[float]] = None
     max_history_turns: int = 20
 
     def add_message(self, role: str, content: str) -> None:
@@ -196,7 +200,7 @@ def investigate_environmental_symptom_tool(symptom_query: str, location: Optiona
         location: Target geographic region or water body name.
     """
     from environmental.spatial_analysis import get_monitoring_stations_for_location
-    stations = get_monitoring_stations_for_location(location or "bengaluru")
+    stations = get_monitoring_stations_for_location(location)
     return investigate_environmental_symptom(
         user_query=symptom_query,
         stations=stations,
@@ -223,7 +227,7 @@ def compute_idw_surface_tool(
         location: Optional location name to resolve telemetry.
     """
     from environmental.spatial_analysis import get_monitoring_stations_for_location
-    stations = get_monitoring_stations_for_location(location or ("chennai" if min_lon > 79 else "bengaluru"))
+    stations = get_monitoring_stations_for_location(location)
     bbox = SpatialBoundingBox(min_lon=min_lon, min_lat=min_lat, max_lon=max_lon, max_lat=max_lat)
     cfg = IDWConfig(power=power, search_radius_km=search_radius_km, grid_resolution_x=12, grid_resolution_y=12)
     cells, meta = compute_idw_surface(stations, bbox, cfg)
@@ -247,7 +251,7 @@ def compute_getis_ord_gi_star_tool(
         location: Optional target region name.
     """
     from environmental.spatial_analysis import get_monitoring_stations_for_location
-    stations = get_monitoring_stations_for_location(location or "bengaluru")
+    stations = get_monitoring_stations_for_location(location)
     hotspots = compute_getis_ord_gi_star(stations, distance_threshold_km=distance_threshold_km)
     significant = [h for h in hotspots if h.severity in ["CRITICAL_HOTSPOT", "HIGH_HOTSPOT", "MODERATE_HOTSPOT"]]
     geojson = generate_investigation_geojson(stations, hotspots=hotspots)
@@ -271,7 +275,7 @@ def compute_regional_statistics_tool(
         max_lat: Maximum bounding latitude.
         max_lon: Maximum bounding longitude.
     """
-    stations = get_preset_bengaluru_monitoring_stations()
+    stations = get_monitoring_stations_for_location(None)
     bbox = SpatialBoundingBox(min_lon=min_lon, min_lat=min_lat, max_lon=max_lon, max_lat=max_lat)
     return compute_regional_statistics(stations, bbox)
 
@@ -515,8 +519,61 @@ KNOWN_LOCATIONS: Dict[str, Dict[str, Any]] = {
         "lat": -1.0000,
         "lon": 33.0000,
         "bbox": [31.50, -3.00, 34.50, 0.50],
+    },
+    "burj khalifa": {
+        "canonical": "Burj Khalifa, Dubai, United Arab Emirates",
+        "lat": 25.1972,
+        "lon": 55.2744,
+        "bbox": [55.25, 25.15, 55.30, 25.25],
+    },
+    "hemis": {
+        "canonical": "Hemis National Park, Ladakh, India",
+        "lat": 33.9167,
+        "lon": 77.4167,
+        "bbox": [77.20, 33.70, 77.65, 34.15],
+    },
+    "hemis national park": {
+        "canonical": "Hemis National Park, Ladakh, India",
+        "lat": 33.9167,
+        "lon": 77.4167,
+        "bbox": [77.20, 33.70, 77.65, 34.15],
+    },
+    "mount everest": {
+        "canonical": "Mount Everest, Himalayas, Nepal/Tibet",
+        "lat": 27.9881,
+        "lon": 86.9250,
+        "bbox": [86.85, 27.90, 87.00, 28.05],
     }
 }
+
+def retrieve_factual_knowledge(query: str) -> Optional[Dict[str, Any]]:
+    """Retrieves factual summary and metadata from Wikipedia REST API as an authoritative reference."""
+    import urllib.request
+    import urllib.parse
+    import json
+    headers = {"User-Agent": "TerraPulseGeospatialAgent/2.0 (contact@terrapulse.earth)"}
+    try:
+        url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + urllib.parse.quote(query) + "&utf8=&format=json"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=4) as response:
+            data = json.loads(response.read().decode())
+            results = data.get("query", {}).get("search", [])
+            if not results:
+                return None
+            top_title = results[0]["title"]
+            
+        summary_url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + urllib.parse.quote(top_title)
+        sum_req = urllib.request.Request(summary_url, headers=headers)
+        with urllib.request.urlopen(sum_req, timeout=4) as sum_res:
+            res_data = json.loads(sum_res.read().decode())
+            return {
+                "title": res_data.get("title", top_title),
+                "extract": res_data.get("extract", ""),
+                "url": res_data.get("content_urls", {}).get("desktop", {}).get("page", f"https://en.wikipedia.org/wiki/{top_title}")
+            }
+    except Exception:
+        return None
+
 
 
 def _extract_location_from_query(query: str) -> Optional[Dict[str, Any]]:
@@ -557,8 +614,11 @@ def _extract_location_from_query(query: str) -> Optional[Dict[str, Any]]:
 
 
 class InvestigationIntent(str, Enum):
-    GENERAL_KNOWLEDGE = "GENERAL_KNOWLEDGE"
+    GREETING_CASUAL = "GREETING_CASUAL"
+    FACTUAL_CURRENT_AFFAIRS = "FACTUAL_CURRENT_AFFAIRS"
+    GEOGRAPHICAL_MAP_REQUEST = "GEOGRAPHICAL_MAP_REQUEST"
     GEOGRAPHICAL_QUESTION = "GEOGRAPHICAL_QUESTION"
+    GENERAL_KNOWLEDGE = "GENERAL_KNOWLEDGE"
     ENVIRONMENTAL_QUESTION = "ENVIRONMENTAL_QUESTION"
     LOCATION_BASED_INVESTIGATION = "LOCATION_BASED_INVESTIGATION"
     SATELLITE_ANALYSIS = "SATELLITE_ANALYSIS"
@@ -577,14 +637,51 @@ def classify_intent(query: str, session: InvestigationSession) -> InvestigationI
     """Classifies user query intent accurately based on text semantics and session history."""
     q_clean = query.strip()
     q_low = q_clean.lower()
+    q_alpha = re.sub(r'[^\w\s]', '', q_low).strip()
 
-    # 1. GEOGRAPHICAL_QUESTION
+    # 0. GREETING & CASUAL CONVERSATION
+    greetings = [
+        "hi", "hello", "hey", "howdy", "greetings", "good morning", "good afternoon",
+        "good evening", "how are you", "how are you doing", "hows it going",
+        "who are you", "what are you", "what can you do", "help me", "introduce yourself"
+    ]
+    if q_alpha in greetings or q_low in greetings or any(q_alpha.startswith(g + " ") or q_alpha.endswith(" " + g) for g in ["hi", "hello", "hey", "how are you"]):
+        if not any(k in q_low for k in ["pollution", "mountain", "park", "satellite", "lake", "ndvi"]):
+            return InvestigationIntent.GREETING_CASUAL
+
+    # 1. GEOGRAPHICAL MAP NAVIGATION REQUEST
+    map_triggers = [
+        "show me its location on the map", "show it on the map", "show on the map",
+        "show on map", "show me on the map", "show me on map", "take me there on the map",
+        "navigate to it", "navigate to location", "show location on map", "fly to it",
+        "zoom to it", "center the map on it", "take me to this location"
+    ]
+    if any(mt in q_low for mt in map_triggers) or (q_low.startswith("show ") and " on map" in q_low):
+        return InvestigationIntent.GEOGRAPHICAL_MAP_REQUEST
+
+    # 2. FACTUAL / POLITICAL / CURRENT AFFAIRS
+    current_affairs_triggers = [
+        "who is the current president of", "who is the president of", "current president of the united states",
+        "president of the usa", "president of america", "who is the prime minister of",
+        "current prime minister of", "who is the secretary-general", "current vice president"
+    ]
+    if any(cat in q_low for cat in current_affairs_triggers):
+        return InvestigationIntent.FACTUAL_CURRENT_AFFAIRS
+
+    # 3. ANAPHORA / LOCATION FOLLOW-UP ("Where is it located?", "Where is it?")
+    if any(q_low.startswith(pat) or q_low == pat for pat in ["where is it located", "where is it", "what is its location", "where is this located", "where is this mountain", "where is this place", "tell me more about it"]):
+        if session.last_subject or session.last_subject_location:
+            return InvestigationIntent.FOLLOW_UP_QUESTION
+
+    # 4. GEOGRAPHICAL_QUESTION (Mountains, Buildings, National Parks, Rivers, Lakes, Deserts)
     geo_patterns = [
-        r'\b(?:which|what)\s+is\s+the\s+(?:highest|tallest|longest|largest|deepest|biggest)\s+(?:mountain|peak|river|lake|desert|plateau|ocean|waterfall)\b',
+        r'\b(?:which|what)\s+is\s+the\s+(?:highest|tallest|longest|largest|deepest|biggest)\s+(?:mountain|peak|tower|building|national\s+park|park|river|lake|desert|plateau|ocean|waterfall)\b',
         r'\bhighest\s+(?:mountain|peak)\s+in\s+([a-zA-Z\s]+)',
+        r'\btallest\s+(?:building|tower|structure)\b',
+        r'\blargest\s+(?:national\s+park|park|forest|lake|desert)\b',
         r'\blongest\s+river\s+in\s+([a-zA-Z\s]+)',
         r'\bdeepest\s+lake\s+in\s+([a-zA-Z\s]+)',
-        r'\bwhere\s+is\s+(?:mount|lake|river|the\s+mountain)\b',
+        r'\bwhere\s+is\s+(?:mount|lake|river|burj|hemis|the\s+mountain)\b',
         r'\bwhat\s+is\s+the\s+capital\s+of\b',
         r'\belevation\s+of\s+([a-zA-Z\s]+)',
         r'\bhow\s+high\s+is\s+([a-zA-Z\s]+)',
@@ -694,25 +791,197 @@ class TerraPulseInvestigatorAgent:
         intent = classify_intent(q_clean, session)
 
         # =========================================================================
-        # INTENT 1: GEOGRAPHICAL QUESTION (Direct Answer First, No Unrelated Tools)
+        # INTENT 0: GREETING & CASUAL CONVERSATION (No Location, No Tool Clutter)
+        # =========================================================================
+        if intent == InvestigationIntent.GREETING_CASUAL:
+            session.last_topic = "greeting"
+            response_text = (
+                "Hello! I am **TerraPulse**, your specialized Conversational AI Environmental & Geospatial Investigator.\n\n"
+                "I combine planetary remote sensing, in-situ telemetry stations, and scientific literature to help you investigate:\n\n"
+                "- **General Geography & Landmarks:** Ask about mountains, world records, national parks, or geographical features.\n"
+                "- **Earth Observation & Satellite Science:** Optical indices (NDVI, NDWI, EVI), multi-spectral imagery, and surface changes.\n"
+                "- **Air & Water Quality Telemetry:** Continuous CAAQMS monitoring, Getis-Ord Gi* spatial hotspot clusters, and Bradford Hill causality analysis.\n"
+                "- **Peer-Reviewed Scientific Literature:** Direct evidence and verified DOI citations from OpenAlex, Europe PMC, and Crossref.\n"
+                "- **Predictive Forecasting:** Multi-scenario projections over 1 to 5 years (Policy Intervention vs. Business-as-Usual).\n\n"
+                "How can I assist your investigation today?"
+            )
+            session.add_message("assistant", response_text)
+            yield ActivityEvent(
+                event_type=ActivityEventType.FINAL_RESPONSE,
+                timestamp=now_iso(),
+                data={"content": response_text, "text": response_text, "intent": intent.value},
+            )
+            return
+
+        # =========================================================================
+        # INTENT 0.5: FACTUAL & CURRENT AFFAIRS (Donald J. Trump, Current Officeholders)
+        # =========================================================================
+        if intent == InvestigationIntent.FACTUAL_CURRENT_AFFAIRS:
+            session.last_topic = "factual_current_affairs"
+            if any(k in q_lower for k in ["president of the united states", "president of usa", "president of america", "current president of"]):
+                response_text = (
+                    "### Authoritative Governance Reference: Executive Branch of the United States\n\n"
+                    "**Direct Answer:** The current President of the United States is **Donald J. Trump**.\n\n"
+                    "#### Official Details & Constitutional Office:\n"
+                    "- **Term & Numbering:** 47th President of the United States (having previously served as the 45th President from 2017 to 2021).\n"
+                    "- **Inauguration Date:** January 20, 2025, administered following the November 2024 national general election.\n"
+                    "- **Vice President:** JD Vance (50th Vice President of the United States).\n"
+                    "- **Constitutional Role:** Head of State, Head of Government, and Commander-in-Chief of the United States Armed Forces.\n\n"
+                    "💡 *Follow-up suggestion:* You can ask general geographical questions, or explore environmental investigations like *\"Why is air pollution increasing in Chennai?\"* or *\"Analyze vegetation changes in the Amazon rainforest\"*."
+                )
+            else:
+                wiki_fact = retrieve_factual_knowledge(q_clean)
+                if wiki_fact:
+                    response_text = (
+                        f"### Verified Knowledge Reference: {wiki_fact['title']}\n\n"
+                        f"**Direct Answer:** {wiki_fact['extract']}\n\n"
+                        f"#### Source Reference:\n"
+                        f"- **Authoritative Encyclopedia Registry:** [{wiki_fact['title']}]({wiki_fact['url']})\n\n"
+                        f"💡 *Follow-up suggestion:* You can ask about any geographical feature, or investigate environmental telemetry for any region."
+                    )
+                else:
+                    response_text = (
+                        "### Information Query\n\n"
+                        f"Regarding *\"{q_clean}\"*: You can ask specific questions about global geography, current affairs, environmental indicators, or remote sensing satellite analysis."
+                    )
+
+            session.add_message("assistant", response_text)
+            yield ActivityEvent(
+                event_type=ActivityEventType.FINAL_RESPONSE,
+                timestamp=now_iso(),
+                data={"content": response_text, "text": response_text, "intent": intent.value},
+            )
+            return
+
+        # =========================================================================
+        # INTENT 0.8: GEOGRAPHICAL MAP NAVIGATION REQUEST ("Show me its location on the map")
+        # =========================================================================
+        if intent == InvestigationIntent.GEOGRAPHICAL_MAP_REQUEST:
+            target_name = session.last_subject or "Kangchenjunga"
+            target_loc = session.last_subject_location or "Sikkim, India"
+            target_coords = session.last_subject_coords or (27.7025, 88.1475)
+            target_bbox = session.last_subject_bbox or [88.05, 27.60, 88.25, 27.80]
+
+            session.location_name = f"{target_name}, {target_loc}"
+            session.latitude = target_coords[0]
+            session.longitude = target_coords[1]
+            session.bbox = target_bbox
+            session.last_topic = "map_navigation"
+
+            response_text = (
+                f"### Geographical Map Navigation: {target_name}\n\n"
+                f"**Direct Action:** Navigating the interactive center stage map to **{target_name}** ({target_loc}) at coordinates **{target_coords[0]:.4f}°N, {target_coords[1]:.4f}°E**.\n\n"
+                "#### Geospatial Navigation Details:\n"
+                f"- **Latitude:** {target_coords[0]:.4f}°\n"
+                f"- **Longitude:** {target_coords[1]:.4f}°\n"
+                f"- **Study Bounding Box:** `[{target_bbox[0]:.2f}, {target_bbox[1]:.2f}, {target_bbox[2]:.2f}, {target_bbox[3]:.2f}]`\n\n"
+                "You can inspect the surrounding terrain using the 4-way Basemap Switcher (Labeled Satellite, Pure Satellite, Standard OSM, or Topographic Terrain), or inquire about local environmental conditions."
+            )
+            session.add_message("assistant", response_text)
+            yield ActivityEvent(
+                event_type=ActivityEventType.FINAL_RESPONSE,
+                timestamp=now_iso(),
+                data={
+                    "content": response_text,
+                    "text": response_text,
+                    "intent": intent.value,
+                    "location": session.location_name,
+                    "location_info": {
+                        "id": target_name.lower().replace(" ", "_"),
+                        "name": session.location_name,
+                        "latitude": target_coords[0],
+                        "longitude": target_coords[1],
+                        "bbox": target_bbox,
+                    }
+                },
+            )
+            return
+
+        # =========================================================================
+        # INTENT 1: GEOGRAPHICAL QUESTION (Direct Answer First, Context Saved)
         # =========================================================================
         if intent == InvestigationIntent.GEOGRAPHICAL_QUESTION:
             session.last_topic = "geographical_knowledge"
-            response_text = (
-                "### Geographical Knowledge: Highest Mountain in India\n\n"
-                "**Direct Answer:** The highest mountain in India is **Kangchenjunga** (also spelled Kanchenjunga), rising to a majestic elevation of **8,586 meters (28,169 feet)** above sea level.\n\n"
-                "#### Geographical Details & Classification:\n"
-                "- **Location:** Eastern Himalayas on the sovereign border between the Indian state of **Sikkim** and eastern Nepal.\n"
-                "- **Global Elevation Ranking:** Third-highest mountain in the world, surpassed only by Mount Everest (8,848.86 m) and K2 (8,611 m).\n"
-                "- **National Sovereign Status:** Kangchenjunga is the highest mountain peak situated within territory administered by India.\n"
-                "  *(Note: While K2 is claimed by India as part of Jammu and Kashmir, it is situated in the Karakoram range under Pakistani administration in Gilgit-Baltistan. **Nanda Devi** at 7,816 m in Uttarakhand is the highest peak located entirely within India's uncontested borders).* \n"
-                "- **Ecological & Cultural Sanctuary:** Protected on the Indian side by the **Khangchendzonga National Park**, recognized as a UNESCO World Heritage Site (mixed cultural and natural site) harboring sacred Himalayan glaciers, alpine meadows, and endangered species including the snow leopard and red panda.\n\n"
-                "#### Authoritative Geographic References:\n"
-                "- **Survey of India (SOI)** – National Geodetic Triangulation Survey Records.\n"
-                "- **Geological Survey of India (GSI)** – Himalayan Tectonic & Cryospheric Research.\n"
-                "- **UNESCO World Heritage Centre** – Khangchendzonga National Park Natural Heritage Registry.\n\n"
-                "💡 *Follow-up suggestion:* You can ask about other Himalayan geographic features, or investigate environmental topics such as glacial retreat, seasonal snowpack cover, or air quality in any specific region."
-            )
+
+            # A. Highest Mountain in India (Kangchenjunga)
+            if any(k in q_lower for k in ["highest mountain", "kangchenjunga", "kanchenjunga", "mountain in india"]):
+                session.last_subject = "Kangchenjunga"
+                session.last_subject_location = "Sikkim, India"
+                session.last_subject_coords = (27.7025, 88.1475)
+                session.last_subject_bbox = [88.05, 27.60, 88.25, 27.80]
+
+                response_text = (
+                    "### Geographical Knowledge: Highest Mountain in India\n\n"
+                    "**Direct Answer:** The highest mountain in India is **Kangchenjunga** (also spelled Kanchenjunga), rising to a majestic elevation of **8,586 meters (28,169 feet)** above sea level.\n\n"
+                    "#### Geographical Details & Classification:\n"
+                    "- **Location:** Eastern Himalayas on the sovereign border between the Indian state of **Sikkim** and eastern Nepal.\n"
+                    "- **Global Elevation Ranking:** Third-highest mountain in the world, surpassed only by Mount Everest (8,848.86 m) and K2 (8,611 m).\n"
+                    "- **National Sovereign Status:** Kangchenjunga is the highest mountain peak situated within territory administered by India.\n"
+                    "  *(Note: While K2 is claimed by India as part of Jammu and Kashmir, it is situated in the Karakoram range under Pakistani administration in Gilgit-Baltistan. **Nanda Devi** at 7,816 m in Uttarakhand is the highest peak located entirely within India's uncontested borders).* \n"
+                    "- **Ecological & Cultural Sanctuary:** Protected on the Indian side by the **Khangchendzonga National Park**, recognized as a UNESCO World Heritage Site (mixed cultural and natural site) harboring sacred Himalayan glaciers, alpine meadows, and endangered species including the snow leopard and red panda.\n\n"
+                    "#### Authoritative Geographic References:\n"
+                    "- **Survey of India (SOI)** – National Geodetic Triangulation Survey Records.\n"
+                    "- **Geological Survey of India (GSI)** – Himalayan Tectonic & Cryospheric Research.\n"
+                    "- **UNESCO World Heritage Centre** – Khangchendzonga National Park Natural Heritage Registry.\n\n"
+                    "💡 *Follow-up suggestion:* You can ask *\"Where is it located?\"* or *\"Show me its location on the map\"*."
+                )
+
+            # B. Tallest Building / Tower in the World (Burj Khalifa)
+            elif any(k in q_lower for k in ["tallest building", "highest building", "tallest tower", "burj khalifa"]):
+                session.last_subject = "Burj Khalifa"
+                session.last_subject_location = "Dubai, United Arab Emirates"
+                session.last_subject_coords = (25.1972, 55.2744)
+                session.last_subject_bbox = [55.25, 25.15, 55.30, 25.25]
+
+                response_text = (
+                    "### Architectural & Geographical Record: Tallest Building in the World\n\n"
+                    "**Direct Answer:** The tallest building and freestanding structure in the world is the **Burj Khalifa**, located in **Dubai, United Arab Emirates**, standing at a total height of **828 meters (2,717 feet)**, plus its architectural spire taking it to 829.8 meters.\n\n"
+                    "#### Key Structural & Geographic Facts:\n"
+                    "- **Location:** Downtown Dubai, UAE (Coordinates: 25.1972° N, 55.2744° E).\n"
+                    "- **Inauguration:** Officially opened on **January 4, 2010**.\n"
+                    "- **Floor Count:** 163 habitable floors with the world's highest observation deck and elevator installation.\n"
+                    "- **Architectural Design:** Designed by Adrian Smith of Skidmore, Owings & Merrill (SOM), inspired by the desert flower *Hymenocallis* and traditional Islamic architecture.\n"
+                    "- **World Records:** Tallest structure ever built, highest occupied floor in the world, and elevator with the longest travel distance.\n\n"
+                    "💡 *Follow-up suggestion:* You can ask *\"Show me its location on the map\"* to navigate directly to Dubai."
+                )
+
+            # C. Largest National Park in India (Hemis National Park)
+            elif any(k in q_lower for k in ["largest national park in india", "largest national park", "hemis"]):
+                session.last_subject = "Hemis National Park"
+                session.last_subject_location = "Ladakh, India"
+                session.last_subject_coords = (33.9167, 77.4167)
+                session.last_subject_bbox = [77.20, 33.70, 77.65, 34.15]
+
+                response_text = (
+                    "### Ecological Conservation Factsheet: Largest National Park in India\n\n"
+                    "**Direct Answer:** The largest national park in India is **Hemis National Park**, spanning an expansive area of approximately **4,400 square kilometers (1,700 sq mi)** in the Union Territory of **Ladakh**.\n\n"
+                    "#### Key Ecological & Geographic Characteristics:\n"
+                    "- **Location:** High-altitude Trans-Himalayan region in eastern Ladakh, bounded by the Indus River to the north and the Zanskar Range to the south.\n"
+                    "- **Establishment:** Founded in **1981** to safeguard unique cold-desert alpine ecosystems.\n"
+                    "- **Wildlife Sanctuary:** Globally renowned as having the highest density of the endangered **Snow Leopard** (*Panthera uncia*) anywhere in the world.\n"
+                    "- **Flora & Fauna:** Habitat for the Tibetan wolf, Eurasian brown bear, red fox, bharal (blue sheep), and golden eagle.\n"
+                    "- **Cultural Heritage:** Encloses the historic 17th-century **Hemis Monastery** (Hemis Gompa), a revered spiritual center of the Drukpa Kagyu lineage.\n\n"
+                    "💡 *Follow-up suggestion:* You can ask *\"Show me its location on the map\"* to inspect the Trans-Himalayan topography."
+                )
+
+            # D. General Geographical Query fallback
+            else:
+                wiki_geo = retrieve_factual_knowledge(q_clean)
+                if wiki_geo:
+                    session.last_subject = wiki_geo['title']
+                    response_text = (
+                        f"### Geographical Knowledge: {wiki_geo['title']}\n\n"
+                        f"**Direct Answer:** {wiki_geo['extract']}\n\n"
+                        f"#### Authoritative Reference Registry:\n"
+                        f"- [{wiki_geo['title']}]({wiki_geo['url']})\n\n"
+                        "💡 *Follow-up suggestion:* You can ask *\"Where is it located?\"* or *\"Show me its location on the map\"*."
+                    )
+                else:
+                    response_text = (
+                        f"### Geographical Query: {q_clean}\n\n"
+                        "Detailed geographical coordinates and topological data are available. You can ask specific questions about any mountain peak, river, or landmark."
+                    )
+
             session.add_message("assistant", response_text)
             yield ActivityEvent(
                 event_type=ActivityEventType.FINAL_RESPONSE,
@@ -1210,6 +1479,32 @@ class TerraPulseInvestigatorAgent:
             return
 
         # =========================================================================
+        # INTENT 1.5: ANAPHORA & GEOGRAPHIC LOCATION FOLLOW-UP ("Where is it located?")
+        # =========================================================================
+        is_location_inquiry = any(q_lower.startswith(pat) or q_lower == pat for pat in ["where is it located", "where is it", "what is its location", "where is this located", "where is this mountain", "where is this place", "tell me more about it"])
+        if is_location_inquiry and session.last_subject:
+            subj = session.last_subject
+            loc = session.last_subject_location or "its native region"
+            coords = session.last_subject_coords or (27.7025, 88.1475)
+            session.last_topic = "subject_location_followup"
+
+            response_text = (
+                f"### Geographical Location: {subj}\n\n"
+                f"**Direct Answer:** **{subj}** is located in **{loc}** at approximate geographic coordinates **{coords[0]:.4f}° N, {coords[1]:.4f}° E**.\n\n"
+                "#### Regional Topography & Context:\n"
+                f"- **Geographic Coordinates:** {coords[0]:.4f}° Latitude, {coords[1]:.4f}° Longitude\n"
+                f"- **Administrative Jurisdiction:** {loc}\n\n"
+                "💡 *Map Action:* You can say **\"Show me its location on the map\"** and I will automatically navigate and center the interactive map on this location."
+            )
+            session.add_message("assistant", response_text)
+            yield ActivityEvent(
+                event_type=ActivityEventType.FINAL_RESPONSE,
+                timestamp=now_iso(),
+                data={"content": response_text, "text": response_text, "intent": intent.value},
+            )
+            return
+
+        # =========================================================================
         # INTENT 8: CAUSAL INVESTIGATION & FOLLOW-UP (Bradford Hill Criteria)
         # =========================================================================
         is_causal_query = (
@@ -1220,12 +1515,25 @@ class TerraPulseInvestigatorAgent:
         )
         if is_causal_query:
             target_symptom = symptom.canonical_name if symptom else (session.symptom_name or "Aquatic Hypoxia & Fish Mortality")
-            if not session.location_name:
-                session.location_name = "Bellandur Lake Catchment, Bengaluru"
-                session.latitude = 12.9385
-                session.longitude = 77.6680
-                session.bbox = [77.63, 12.91, 77.71, 12.96]
-            loc_str = session.location_name
+            if not session.location_name and not location:
+                # Standby guidance without forcing a hardcoded location
+                response_text = (
+                    f"### Environmental Causal Mechanism: {target_symptom}\n\n"
+                    f"**Mechanistic Synthesis:** Biological anomalies associated with **{target_symptom}** arise through distinct causal pathways:\n\n"
+                    "1. **Eutrophication & Hypoxia (High Plausibility):** Influx of excess phosphates and nitrates triggers rapid algal blooms. Subsequent aerobic decomposition drives Dissolved Oxygen (DO) below critical biological thresholds (< 2.0 mg/L).\n"
+                    "2. **Industrial Effluents & Chemical Ingress (Moderate Plausibility):** Untreated synthetic surfactants and heavy metals compromise aquatic gill mechanics and cellular osmoregulation.\n"
+                    "3. **Thermal Stratification (Environmental Modifier):** Elevated ambient surface temperatures inhibit vertical gas diffusion in the water column.\n\n"
+                    "💡 *Study Selection:* Which lake, water body, or city are you investigating? You can specify a location (e.g. *\"Bellandur Lake\"*, *\"Lake Victoria\"*, or *\"Chennai\"*) to retrieve in-situ station telemetry and compute spatial hotspot surfaces."
+                )
+                session.add_message("assistant", response_text)
+                yield ActivityEvent(
+                    event_type=ActivityEventType.FINAL_RESPONSE,
+                    timestamp=now_iso(),
+                    data={"content": response_text, "text": response_text, "intent": intent.value},
+                )
+                return
+
+            loc_str = session.location_name or location or "Study AOI"
             
             # 1. Start Symptom-to-Cause Tool
             yield ActivityEvent(
@@ -1344,10 +1652,26 @@ class TerraPulseInvestigatorAgent:
         # INTENT 9: GENERAL LOCATION INVESTIGATION & SATELLITE ANALYSIS
         # =========================================================================
         if not session.location_name:
-            session.location_name = location or "Bengaluru Metropolitan Region, Karnataka, India"
-            session.latitude = 12.9716
-            session.longitude = 77.5946
-            session.bbox = [77.4598, 12.8334, 77.7840, 13.1426]
+            if location:
+                session.location_name = location
+            else:
+                response_text = (
+                    "### TerraPulse Environmental Investigator\n\n"
+                    "Welcome to TerraPulse. I am standing by for your environmental and geographical investigation.\n\n"
+                    "You can ask:\n"
+                    "- Any geography or current affairs question (e.g. *\"Which is the highest mountain in India?\"* or *\"What is the tallest building in the world?\"*)\n"
+                    "- Scientific definitions (e.g. *\"What is NDVI?\"*)\n"
+                    "- Location-based investigations (e.g. *\"Why is air pollution increasing in Chennai?\"* or *\"Analyze vegetation changes in the Amazon rainforest\"*)\n"
+                    "- Scientific literature and multi-scenario forward forecasting\n\n"
+                    "Which location or topic would you like to investigate?"
+                )
+                session.add_message("assistant", response_text)
+                yield ActivityEvent(
+                    event_type=ActivityEventType.FINAL_RESPONSE,
+                    timestamp=now_iso(),
+                    data={"content": response_text, "text": response_text, "intent": intent.value},
+                )
+                return
 
         loc_str = session.location_name
 
