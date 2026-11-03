@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { 
-  Layers, MapPin, Radio, ShieldAlert, Info, Flame, Eye, EyeOff, 
-  Maximize2, Crosshair, AlertTriangle, Satellite, Calendar, Cloud, ZoomIn
+  Layers, MapPin, Info, Flame, Eye, EyeOff, 
+  Crosshair, AlertTriangle, Satellite, ChevronDown
 } from 'lucide-react';
 import { StationMeasurement, HeatmapData } from '../../types/investigation';
 import { SatelliteScene } from '../../types';
@@ -45,6 +45,7 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
   const [showStations, setShowStations] = useState(true);
   const [showIDW, setShowIDW] = useState(true);
   const [showFootprint, setShowFootprint] = useState(true);
+  const [showLayerMenu, setShowLayerMenu] = useState(true);
 
   // Initialize Map
   useEffect(() => {
@@ -64,7 +65,7 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
 
     mapInstanceRef.current = map;
 
-    // 1. Esri World Imagery (High-res Dark Satellite)
+    // 1. Esri World Imagery (High-res Clean Satellite Basemap)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19
     }).addTo(map);
@@ -287,59 +288,88 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
         </span>
       </div>
 
-      {/* Top Right: Layer Switcher Floating Controls */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 p-2 rounded-xl bg-[#050b1a]/90 border border-cyan-500/25 backdrop-blur-md shadow-xl text-xs font-mono text-slate-300">
-        <div className="text-[10px] uppercase font-bold text-slate-400 px-1 flex items-center gap-1.5">
-          <Layers className="w-3 h-3 text-cyan-400" />
-          <span>Spatial Layers</span>
+      {/* Top Right: Clean Integrated Layer & Imagery Controls */}
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 p-2.5 rounded-xl bg-[#050b1a]/95 border border-cyan-500/30 backdrop-blur-md shadow-2xl text-xs font-mono text-slate-300 w-56">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Spatial Controls</span>
+          </div>
+          <button 
+            onClick={() => setShowLayerMenu(!showLayerMenu)}
+            className="text-slate-400 hover:text-white"
+          >
+            <ChevronDown className={`w-3 h-3 transition-transform ${showLayerMenu ? 'rotate-180' : ''}`} />
+          </button>
         </div>
 
-        <button
-          onClick={() => setShowStations(!showStations)}
-          className={`flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors ${
-            showStations ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>Ground Stations ({stations.length})</span>
-          </div>
-          {showStations ? <Eye className="w-3 h-3 text-cyan-400" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
-        </button>
+        {showLayerMenu && (
+          <div className="space-y-1.5 pt-1">
+            {/* Ground Stations Toggle */}
+            <button
+              onClick={() => setShowStations(!showStations)}
+              className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] transition-colors ${
+                showStations ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Stations ({stations.length})</span>
+              </div>
+              {showStations ? <Eye className="w-3 h-3 text-cyan-400" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
+            </button>
 
-        <button
-          onClick={() => setShowIDW(!showIDW)}
-          className={`flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors ${
-            showIDW ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span>IDW Heatmap Surface</span>
-          </div>
-          {showIDW ? <Eye className="w-3 h-3 text-cyan-400" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
-        </button>
+            {/* IDW Heatmap Toggle */}
+            <button
+              onClick={() => setShowIDW(!showIDW)}
+              className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] transition-colors ${
+                showIDW ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span>IDW Heatmap Surface</span>
+              </div>
+              {showIDW ? <Eye className="w-3 h-3 text-cyan-400" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
+            </button>
 
-        <button
-          onClick={() => setShowFootprint(!showFootprint)}
-          className={`flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors ${
-            showFootprint ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-            <span>Satellite Footprint</span>
-          </div>
-          {showFootprint ? <Eye className="w-3 h-3 text-cyan-400" /> : <EyeOff className="w-3 h-3 text-slate-500" />}
-        </button>
+            {/* Optional Optical Scene Selector */}
+            {scenes.length > 0 && selectedScene && (
+              <div className="pt-1 border-t border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between text-[9px] text-slate-400">
+                  <span className="flex items-center gap-1 text-cyan-300">
+                    <Satellite className="w-2.5 h-2.5 text-cyan-400" />
+                    <span>Optical Scene</span>
+                  </span>
+                  <span>{selectedScene.cloud_cover.toFixed(1)}% cloud</span>
+                </div>
+                <select
+                  value={selectedScene.id}
+                  onChange={(e) => {
+                    const found = scenes.find((s) => s.id === e.target.value);
+                    if (found && onSelectScene) onSelectScene(found);
+                  }}
+                  className="w-full bg-[#030612] border border-cyan-500/30 rounded px-1.5 py-0.5 text-[9px] text-cyan-300 focus:outline-none"
+                >
+                  {scenes.map((sc) => (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.mission} ({sc.year}) - {sc.sensor}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-        <button
-          onClick={handleZoomReset}
-          className="mt-1 flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] transition-colors"
-        >
-          <Crosshair className="w-3 h-3 text-cyan-400" />
-          <span>Recenter Study Area</span>
-        </button>
+            {/* Recenter Button */}
+            <button
+              onClick={handleZoomReset}
+              className="w-full mt-1 flex items-center justify-center gap-1 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] transition-colors"
+            >
+              <Crosshair className="w-3 h-3 text-cyan-400" />
+              <span>Recenter Study Area</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Ground Station Zero Availability Warning */}
@@ -349,73 +379,22 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
           <div>
             <div className="font-bold text-amber-200">No Ground Sensors in AOI</div>
             <div className="text-[10px] text-amber-300/80">
-              Ground telemetry stations are unavailable for this immediate boundary. Satellite optical observations & spatial indices remain active.
+              Ground telemetry stations are unavailable for this immediate boundary. Satellite optical observations & spatial models remain active.
             </div>
           </div>
         </div>
       )}
 
-      {/* Planetary Computer Satellite Scene Card */}
-      {selectedScene && (
-        <div className="absolute top-[180px] right-3 z-10 p-3 rounded-xl bg-[#061026]/90 border border-cyan-500/30 backdrop-blur-md shadow-xl max-w-xs text-xs font-mono space-y-2">
-          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-1">
-            <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
-              <Satellite className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Planetary Optical Scene</span>
-            </div>
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              {selectedScene.mission}
-            </span>
-          </div>
-
-          {scenes.length > 1 && onSelectScene && (
-            <select
-              value={selectedScene.id}
-              onChange={(e) => {
-                const found = scenes.find((s) => s.id === e.target.value);
-                if (found) onSelectScene(found);
-              }}
-              className="w-full bg-[#030612] border border-cyan-500/30 rounded px-2 py-1 text-[10px] text-cyan-300 focus:outline-none"
-            >
-              {scenes.map((sc) => (
-                <option key={sc.id} value={sc.id}>
-                  {sc.mission} ({sc.year}) - {sc.acquisition_date.split('T')[0]}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
-            <div>
-              <span className="text-slate-400">Sensor:</span>
-              <div className="text-slate-200 font-semibold">{selectedScene.sensor}</div>
-            </div>
-            <div>
-              <span className="text-slate-400">Acquisition:</span>
-              <div className="text-slate-200 font-semibold">{selectedScene.acquisition_date.split('T')[0]}</div>
-            </div>
-            <div>
-              <span className="text-slate-400">Cloud Cover:</span>
-              <div className="text-slate-200 font-semibold">{selectedScene.cloud_cover.toFixed(1)}%</div>
-            </div>
-            <div>
-              <span className="text-slate-400">Resolution:</span>
-              <div className="text-slate-200 font-semibold">{selectedScene.spatial_resolution_m}m GSD</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom Left: Epistemic Notice & Data Distinctions Legend */}
-      <div className="absolute bottom-3 left-3 z-10 p-2.5 rounded-xl bg-[#050b1a]/90 border border-cyan-500/20 backdrop-blur-md shadow-xl max-w-sm text-[11px] font-mono space-y-1">
-        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+      {/* Bottom Left: Epistemic Notice & Legend */}
+      <div className="absolute bottom-3 left-3 z-10 p-2.5 rounded-xl bg-[#050b1a]/90 border border-cyan-500/20 backdrop-blur-md shadow-xl max-w-xs text-[10px] font-mono space-y-1">
+        <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase text-[9px]">
           <Info className="w-3 h-3 text-cyan-400" />
           <span>Epistemic Data Integrity</span>
         </div>
-        <div className="flex items-center gap-3 text-[10px]">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>Direct Sensor</span>
+            <span>Sensor</span>
           </div>
           <div className="flex items-center gap-1 text-slate-300">
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
@@ -426,50 +405,38 @@ export const InvestigationMap: React.FC<InvestigationMapProps> = ({
             <span>Hotspot</span>
           </div>
         </div>
-        {heatmapData && (
-          <p className="text-[10px] text-cyan-300/80 leading-tight pt-0.5">
-            Coverage: <strong>{heatmapData.coverage_percentage}%</strong> of study area within 10km radius.
-          </p>
-        )}
       </div>
 
       {/* Bottom Right: Station Inspector Card (when selected) */}
       {selectedStation && (
-        <div className="absolute bottom-3 right-3 z-10 p-3.5 rounded-xl bg-[#050e24]/95 border border-cyan-400/40 backdrop-blur-xl shadow-2xl max-w-xs text-xs font-mono space-y-2">
-          <div className="flex items-start justify-between gap-2 border-b border-cyan-500/20 pb-1.5">
+        <div className="absolute bottom-3 right-3 z-10 p-3 rounded-xl bg-[#050e24]/95 border border-cyan-400/40 backdrop-blur-xl shadow-2xl max-w-xs text-xs font-mono space-y-1.5">
+          <div className="flex items-start justify-between gap-2 border-b border-cyan-500/20 pb-1">
             <div>
               <div className="font-bold text-white text-xs">{selectedStation.station_name}</div>
               <div className="text-[10px] text-cyan-400">{selectedStation.station_id}</div>
             </div>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               {selectedStation.quality_flag}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div>
-              <span className="text-slate-500 text-[10px]">MEASUREMENT</span>
+              <span className="text-slate-500 text-[9px]">MEASUREMENT</span>
               <div className="text-cyan-300 font-bold text-sm">
-                {selectedStation.value} <span className="text-[10px] text-slate-400">{selectedStation.unit}</span>
+                {selectedStation.value} <span className="text-[9px] text-slate-400">{selectedStation.unit}</span>
               </div>
             </div>
             <div>
-              <span className="text-slate-500 text-[10px]">POLLUTANT</span>
+              <span className="text-slate-500 text-[9px]">POLLUTANT</span>
               <div className="text-slate-200 font-semibold">{selectedStation.indicator}</div>
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-400 space-y-0.5 pt-1 border-t border-slate-800">
+          <div className="text-[9px] text-slate-400 space-y-0.5 pt-1 border-t border-slate-800">
             <div>Timestamp: {selectedStation.timestamp}</div>
             <div>Agency: {selectedStation.provenance}</div>
           </div>
-
-          {selectedStation.is_sample_data && (
-            <div className="text-[9px] text-amber-300/90 bg-amber-500/10 p-1.5 rounded border border-amber-500/30 flex items-start gap-1">
-              <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
-              <span>{selectedStation.sample_data_note || "Sample benchmark data for demonstration."}</span>
-            </div>
-          )}
         </div>
       )}
     </div>

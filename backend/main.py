@@ -1,4 +1,6 @@
 """Earth Temporal Intelligence - FastAPI Backend Application."""
+import os
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 from pathlib import Path
 import io
 import sys

@@ -15,6 +15,8 @@ Provides:
 
 from __future__ import annotations
 
+import os
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import re
 import time
 import logging
