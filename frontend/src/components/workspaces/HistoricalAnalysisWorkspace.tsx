@@ -185,3 +185,4 @@ export const HistoricalAnalysisWorkspace: React.FC<HistoricalAnalysisWorkspacePr
     </div>
   );
 };
+

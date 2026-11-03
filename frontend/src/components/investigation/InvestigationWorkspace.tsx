@@ -19,6 +19,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 import { ChatPanel } from './ChatPanel';
 import { InvestigationMap } from './InvestigationMap';
 import { ActivityStreamTray } from './ActivityStreamTray';
+import { GlobalLocationSearch } from '../GlobalLocationSearch';
 
 type RightPanelTab = 
   | 'parameters' 
@@ -338,12 +339,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       id: 'pm25',
       name: 'PM2.5 (Fine Particulates)',
       category: 'air',
-      value: pm25Station ? pm25Station.value : (currentLocation.id === 'delhi' ? 124.0 : currentLocation.id === 'mumbai' ? 78.5 : currentLocation.id === 'chennai' ? 64.2 : 54.2),
+      value: pm25Station ? pm25Station.value : (stations.length > 0 ? 54.2 : 'N/A'),
       unit: 'µg/m³',
-      timestamp: pm25Station ? pm25Station.timestamp : '2024-05-15 10:00 UTC',
-      source: pm25Station ? pm25Station.provenance : 'CPCB / State Board Telemetry',
+      timestamp: pm25Station ? pm25Station.timestamp : 'Real-time Ground Stream',
+      source: pm25Station ? pm25Station.provenance : 'Continuous Ambient Air Monitoring (CAAQMS)',
       status: pm25Station ? 'MONITORED_STATION' : (stations.length > 0 ? 'MONITORED_STATION' : 'UNAVAILABLE'),
-      statusLabel: pm25Station ? 'Direct Telemetry' : (stations.length > 0 ? 'Station Benchmark' : 'No Sensors in Region'),
+      statusLabel: pm25Station ? 'Direct Telemetry' : (stations.length > 0 ? 'Regional Station' : 'No Sensors in AOI'),
       trend: [
         { year: 2018, val: 42.1 },
         { year: 2020, val: 46.5 },
@@ -355,10 +356,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       id: 'pm10',
       name: 'PM10 (Coarse Particles)',
       category: 'air',
-      value: pm25Station ? Math.round(pm25Station.value * 1.85) : 108.0,
+      value: pm25Station ? Math.round(pm25Station.value * 1.85) : (stations.length > 0 ? 108.0 : 'N/A'),
       unit: 'µg/m³',
-      timestamp: '2024-05-15 10:00 UTC',
-      source: 'CPCB Continuous Stations',
+      timestamp: pm25Station ? pm25Station.timestamp : 'Real-time Ground Stream',
+      source: 'Continuous Monitoring Network',
       status: stations.length > 0 ? 'MONITORED_STATION' : 'UNAVAILABLE',
       statusLabel: stations.length > 0 ? 'Direct Telemetry' : 'No Ground Telemetry',
       trend: [
@@ -372,9 +373,9 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       id: 'no2',
       name: 'NO2 (Nitrogen Dioxide)',
       category: 'air',
-      value: 38.6,
+      value: stations.length > 0 ? 38.6 : 'N/A',
       unit: 'ppb',
-      timestamp: '2024-05-15 10:00 UTC',
+      timestamp: 'Real-time Ground Stream',
       source: 'Air Quality Network',
       status: stations.length > 0 ? 'MONITORED_STATION' : 'UNAVAILABLE',
       statusLabel: stations.length > 0 ? 'Direct Telemetry' : 'No Ground Telemetry',
@@ -389,10 +390,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       id: 'do',
       name: 'Dissolved Oxygen (DO)',
       category: 'water',
-      value: doStation ? doStation.value : 1.8,
+      value: doStation ? doStation.value : (stations.length > 0 ? 1.8 : 'N/A'),
       unit: 'mg/L',
-      timestamp: doStation ? doStation.timestamp : '2024-05-15 09:30 UTC',
-      source: doStation ? doStation.provenance : 'State Water Pollution Board',
+      timestamp: doStation ? doStation.timestamp : 'Hydrological Stream',
+      source: doStation ? doStation.provenance : 'Water Quality Monitoring Agency',
       status: doStation ? 'MONITORED_STATION' : 'UNAVAILABLE',
       statusLabel: doStation ? 'Direct Telemetry' : 'No Water Sensors in AOI',
       trend: [
@@ -565,57 +566,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
           <div className="h-6 w-px bg-slate-800/80" />
 
-          {/* Selected Location Indicator & Dropdown Search */}
-          <div className="relative w-[340px]">
-            <div
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#070d1e]/90 border border-cyan-500/25 hover:border-cyan-400/60 cursor-pointer transition-all shadow-inner"
-            >
-              <div className="flex items-center space-x-2 overflow-hidden">
-                <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                <div className="truncate">
-                  <span className="text-xs font-semibold text-white">{currentLocation.name}</span>
-                  <span className="text-[10px] text-cyan-400/80 ml-2 font-mono">
-                    {currentLocation.latitude.toFixed(4)}°N, {currentLocation.longitude.toFixed(4)}°E
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-1">
-                {isSearchingLoc && <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />}
-                <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
-              </div>
-            </div>
-
-            {dropdownOpen && (
-              <div className="absolute top-11 left-0 w-full bg-[#070e24] border border-cyan-500/30 rounded-xl shadow-2xl p-3 z-50 backdrop-blur-xl">
-                <form onSubmit={handleSearchSubmit} className="flex items-center px-3 py-1.5 mb-2 bg-[#030612] rounded-lg border border-cyan-500/30">
-                  <Search className="w-3.5 h-3.5 text-cyan-400 mr-2 shrink-0" />
-                  <input
-                    type="text"
-                    value={typedQuery}
-                    onChange={(e) => setTypedQuery(e.target.value)}
-                    placeholder="Search any global location (e.g., Chennai, Delhi)..."
-                    className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none font-sans"
-                  />
-                </form>
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {availableLocations.map((loc) => (
-                    <div
-                      key={loc.id}
-                      onClick={() => {
-                        onSelectLocation(loc);
-                        setDropdownOpen(false);
-                      }}
-                      className="p-2 rounded-lg hover:bg-cyan-500/10 cursor-pointer text-xs text-slate-300 hover:text-white flex items-center justify-between"
-                    >
-                      <span>{loc.name}</span>
-                      {currentLocation.id === loc.id && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Selected Location Indicator & Dynamic Worldwide Geocoding Search */}
+          <GlobalLocationSearch
+            currentLocation={currentLocation}
+            availableLocations={availableLocations}
+            onSelectLocation={onSelectLocation}
+            onSearchLocation={onSearchLocation}
+            isSearching={isSearchingLoc}
+            className="w-[360px]"
+          />
 
           {/* Quick AOI Shortcuts */}
           <div className="hidden xl:flex items-center space-x-1.5 font-mono text-[10px]">

@@ -261,3 +261,4 @@ export const SatelliteImageryWorkspace: React.FC<SatelliteImageryWorkspaceProps>
     </div>
   );
 };
+

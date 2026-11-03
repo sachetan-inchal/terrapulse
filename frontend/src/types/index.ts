@@ -19,6 +19,7 @@ export interface LocationInfo {
   default_crs: string;
   target_utm: string;
   description: string;
+  feature_type?: string;
 }
 
 export interface SatelliteScene {

@@ -116,15 +116,20 @@ def get_locations_endpoint():
     return PRESET_LOCATIONS
 
 @app.get("/api/locations/search", response_model=List[LocationInfo])
-def search_location_endpoint(q: str = Query(..., min_length=1)):
-    from backend.services.geocoding import geocode_location
-    resolved = geocode_location(q)
-    return [resolved]
+def search_location_endpoint(
+    q: str = Query(..., min_length=1, description="Worldwide place name, address, or coordinates"),
+    limit: int = Query(8, ge=1, le=20, description="Max candidate suggestions")
+):
+    from backend.services.geocoding import search_locations
+    return search_locations(q, limit=limit)
 
 @app.get("/api/locations/geocode", response_model=LocationInfo)
-def geocode_endpoint(q: str = Query(..., min_length=1)):
+def geocode_endpoint(q: str = Query(..., min_length=1, description="Location query to resolve")):
     from backend.services.geocoding import geocode_location
-    return geocode_location(q)
+    try:
+        return geocode_location(q, allow_fallback=False)
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err))
 
 @app.get("/api/scenes", response_model=List[SatelliteScene])
 def get_scenes(

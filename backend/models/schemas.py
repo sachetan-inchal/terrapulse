@@ -12,6 +12,7 @@ class LocationInfo(BaseModel):
     default_crs: str = "EPSG:4326"
     target_utm: str
     description: str
+    feature_type: Optional[str] = "place"
 
 class SatelliteScene(BaseModel):
     id: str

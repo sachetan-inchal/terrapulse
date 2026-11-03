@@ -245,3 +245,4 @@ export const SpectralAnalysisWorkspace: React.FC<SpectralAnalysisWorkspaceProps>
     </div>
   );
 };
+

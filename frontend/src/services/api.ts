@@ -37,6 +37,22 @@ export async function geocodeLocation(query: string): Promise<LocationInfo> {
   return await res.json();
 }
 
+export async function searchWorldwideLocations(query: string, limit: number = 8): Promise<LocationInfo[]> {
+  try {
+    const res = await fetch(`${API_BASE}/locations/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    if (!res.ok) throw new Error(`Worldwide search failed: ${res.statusText}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Live worldwide search failed, falling back to local geocode:', err);
+    try {
+      const single = await geocodeLocation(query);
+      return [single];
+    } catch {
+      return [];
+    }
+  }
+}
+
 export async function fetchScenes(locationId: string = 'bengaluru', maxCloud: number = 20.0): Promise<SatelliteScene[]> {
   try {
     const res = await fetch(`${API_BASE}/scenes?location_id=${locationId}&max_cloud=${maxCloud}`);
