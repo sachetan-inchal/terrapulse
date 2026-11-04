@@ -164,7 +164,7 @@ export interface DataSourceState {
   other: boolean;
 }
 
-export type AppInterfaceMode = 'explorer' | 'investigator';
+export type AppInterfaceMode = 'explorer' | 'investigator' | 'qa_workbench';
 
 export interface RelatedImageItem {
   id: string;

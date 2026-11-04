@@ -11,6 +11,7 @@ import { EnvironmentalIndicatorsWorkspace } from './components/workspaces/Enviro
 import { CVTechnicalWorkspace } from './components/CVTechnicalWorkspace';
 import { ReportsWorkspace } from './components/ReportsWorkspace';
 import { InvestigationWorkspace } from './components/investigation/InvestigationWorkspace';
+import { GeoAgentQAWorkbench } from './components/workbench/GeoAgentQAWorkbench';
 import { NavSection } from './types';
 import { GeoProvider, useGeoContext } from './context/GeoContext';
 
@@ -58,6 +59,11 @@ const MainAppContent: React.FC = () => {
         onSelectScene={selectScene}
       />
     );
+  }
+
+  // MODE C: Dedicated GeoAgent QA / Testing Workbench
+  if (interfaceMode === 'qa_workbench') {
+    return <GeoAgentQAWorkbench onSwitchMode={setInterfaceMode} />;
   }
 
   // MODE B: Dedicated Modular Earth Observation Explorer (9 Workspaces)

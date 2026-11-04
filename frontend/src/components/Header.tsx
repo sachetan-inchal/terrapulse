@@ -112,6 +112,17 @@ export const Header: React.FC<HeaderProps> = ({
             <Activity className="w-3.5 h-3.5" />
             <span>AI Earth Investigator</span>
           </button>
+          <button
+            onClick={() => onSwitchMode('qa_workbench')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              interfaceMode === 'qa_workbench'
+                ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white font-semibold shadow-md shadow-purple-500/20 border border-purple-400/30'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+            <span>GeoAgent QA / Testing Workbench</span>
+          </button>
         </div>
       </div>
 

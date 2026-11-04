@@ -49,6 +49,7 @@ from environmental.symptom_analyzer import investigate_environmental_symptom
 from environmental.forecasting import generate_environmental_forecast
 from environmental.research_apis.aggregator import ResearchAggregator
 from environmental.research_apis.base import ArticleMetadata
+from backend.qa.router import router as qa_router
 
 global_investigator_agent = TerraPulseInvestigatorAgent()
 global_research_aggregator = ResearchAggregator()
@@ -67,6 +68,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(qa_router)
+
+@app.get("/qa")
+@app.get("/testing")
+def get_qa_workbench():
+    workbench_path = ROOT_DIR / "backend" / "static" / "qa_workbench.html"
+    if workbench_path.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(workbench_path)
+    raise HTTPException(status_code=404, detail="QA Workbench file not found")
 
 @app.get("/api/health")
 def health_check():

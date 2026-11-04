@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoAgent QA / Testing Workbench</title>
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --card-bg: #070e24;
+      --card-border: #1e293b;
+      --primary: #06b6d4;
+      --primary-hover: #0891b2;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --pass: #10b981;
+      --partial: #f59e0b;
+      --fail: #ef4444;
+      --mocked: #a855f7;
+      --blocked: #3b82f6;
+      --unverified: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Header */
+    header {
+      background: #040816;
+      border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-pill {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-pass { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-mocked { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-fail { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-partial { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-blocked { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+    /* Top Sub-Navigation Tabs */
+    .subnav {
+      background: #050b1e;
+      border-bottom: 1px solid var(--card-border);
+      padding: 6px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover { color: white; background: rgba(30, 41, 59, 0.6); }
+    .tab-btn.active {
+      background: rgba(6, 182, 212, 0.18);
+      color: #22d3ee;
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+
+    /* Layout */
+    .workbench-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 320px;
+      background: #04091a;
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      color: white;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { background: #334155; color: white; }
+
+    .item-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .nav-item {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .nav-item:hover { background: rgba(30, 41, 59, 0.6); }
+    .nav-item.active {
+      background: rgba(6, 182, 212, 0.12);
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+    .item-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .item-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Main Area */
+    .main-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 24px;
+      gap: 20px;
+      background: #020617;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .form-input {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: white;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+
+    .test-card {
+      background: #070d20;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .test-card.status-PASS { border-left: 4px solid var(--pass); }
+    .test-card.status-PARTIAL { border-left: 4px solid var(--partial); }
+    .test-card.status-FAIL { border-left: 4px solid var(--fail); }
+    .test-card.status-MOCKED { border-left: 4px solid var(--mocked); }
+    .test-card.status-BLOCKED { border-left: 4px solid var(--blocked); }
+
+    .code-view {
+      background: #020617;
+      border: 1px solid #0f172a;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .timeline-step {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 14px;
+    }
+    .timeline-step::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      bottom: -14px;
+      width: 2px;
+      background: #1e293b;
+    }
+    .timeline-step:last-child::before { display: none; }
+    .timeline-dot {
+      position: absolute;
+      left: 0;
+      top: 4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid #070e24;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .crit-card {
+      background: #030712;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+    }
+    .crit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header>
+    <div class="brand-title">
+      <span style="color: #06b6d4;">⚙ GeoAgent</span>
+      <span>QA / Testing Workbench</span>
+      <span class="badge-pill badge-cyan">Independent Black-Box Suite</span>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <a href="/api/qa/export?format=markdown" target="_blank" class="btn btn-secondary">⬇ Export Report</a>
+      <button class="btn btn-primary" onclick="refreshDependencies()">🔄 Check Dependencies</button>
+    </div>
+  </header>
+
+  <!-- Sub Navigation Bar: 5 Workbench Tabs -->
+  <div class="subnav">
+    <div style="display: flex; gap: 8px;">
+      <button class="tab-btn active" id="tab-btn-components" onclick="switchTab('components')">
+        🔬 Component Tests (A–J)
+      </button>
+      <button class="tab-btn" id="tab-btn-integration" onclick="switchTab('integration')">
+        🔗 Integration Lab (6 Workflows)
+      </button>
+      <button class="tab-btn" id="tab-btn-agentloop" onclick="switchTab('agentloop')">
+        🔄 Agent Loop Lab (12 Behaviors)
+      </button>
+      <button class="tab-btn" id="tab-btn-arena" onclick="switchTab('arena')">
+        ⚡ Prompt Arena & Timeline Trace
+      </button>
+      <button class="tab-btn" id="tab-btn-reports" onclick="switchTab('reports')">
+        📋 Reports Center
+      </button>
+    </div>
+    <div style="font-size: 11px; font-family: monospace;" id="global-stats-badge">
+      Loading tests...
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="workbench-container">
+    
+    <!-- Left Navigation Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span style="font-size: 11px; font-family: monospace; font-weight: 700; text-transform: uppercase;" id="sidebar-section-title">
+          Components (9)
+        </span>
+        <button class="btn btn-primary" id="sidebar-action-btn" onclick="executeCurrentSectionAll()">
+          ▶ Run All
+        </button>
+      </div>
+      <div class="item-list" id="sidebar-items-list">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Center Stage -->
+    <div class="main-stage" id="stage-viewport">
+      <!-- Rendered by JS based on active tab -->
+    </div>
+
+  </div>
+
+  <script>
+    // State
+    let activeTab = 'components';
+    let inventory = [];
+    let activeComponentId = 'pollutants';
+    let componentResults = [];
+    let dependencies = {};
+
+    let integrationWorkflows = [];
+    let activeWorkflowId = 'INT-01';
+    let integrationResults = {};
+
+    let behaviors = [];
+    let activeBehaviorCode = 'A';
+    let agentLoopResults = {};
+
+    let arenaPrompts = [];
+    let activePromptId = 'PRM-01';
+    let currentArenaPrompt = '';
+    let arenaResult = null;
+
+    let activeReportType = 'component';
+    let reportContent = '';
+
+    const SAMPLE_INPUTS = {
+      pollutants: "lead",
+      research: "algal blooms cyanobacteria Lake Erie",
+      agent: "Why are fish dying in Bellandur Lake?",
+      symptom: "Water turning green with dead fish floating",
+      geospatial: "Bengaluru",
+      satellite: "bengaluru",
+      vision: "",
+      geocoding: "Mount Kilimanjaro",
+      workflow: "Why is air pollution increasing in Chennai?"
+    };
+
+    // Initialization
+    async function init() {
+      await fetchInventory();
+      await fetchDependencies();
+      await fetchIntegrationList();
+      await fetchBehaviors();
+      await fetchArenaPrompts();
+      runAllComponentSuites();
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-btn-' + tab).classList.add('active');
+      renderSidebar();
+      renderStage();
+    }
+
+    // -------------------------------------------------------------
+    // Data Fetchers
+    // -------------------------------------------------------------
+    async function fetchInventory() {
+      try {
+        const res = await fetch('/api/qa/inventory');
+        const data = await res.json();
+        inventory = data.components || [];
+      } catch (e) { console.error(e); }
+    }
+
+    async function fetchDependencies() {
+      try {
+        const res = await fetch('/api/qa/dependencies');
+        dependencies = await res.json();
+      } catch (e) { console.error(e); }
+    }
+
+    async function fetchIntegrationList() {
+      try {
+        const res = await fetch('/api/qa/integration/list');
+        integrationWorkflows = await res.json();
+      } catch (e) { console.error(e); }
+    }
+
+    async function fetchBehaviors() {
+      try {
+        const res = await fetch('/api/qa/agent-loop/behaviors');
+        behaviors = await res.json();
+      } catch (e) { console.error(e); }
+    }
+
+    async function fetchArenaPrompts() {
+      try {
+        const res = await fetch('/api/qa/arena/prompts');
+        arenaPrompts = await res.json();
+        if (arenaPrompts.length > 0) {
+          currentArenaPrompt = arenaPrompts[0].prompt;
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    // -------------------------------------------------------------
+    // Execution Handlers
+    // -------------------------------------------------------------
+    async function runAllComponentSuites() {
+      const btn = document.getElementById('sidebar-action-btn');
+      if (btn) btn.innerText = 'Running...';
+      try {
+        const res = await fetch('/api/qa/run-all', { method: 'POST' });
+        const data = await res.json();
+        componentResults = data.results || [];
+        updateGlobalCounters();
+      } catch (e) { console.error(e); }
+      if (btn) btn.innerText = '▶ Run All';
+      if (activeTab === 'components') {
+        renderSidebar();
+        renderStage();
+      }
+    }
+
+    async function runActiveComponent() {
+      const inputVal = document.getElementById('comp-custom-input') ? document.getElementById('comp-custom-input').value : '';
+      try {
+        const res = await fetch('/api/qa/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ component: activeComponentId, custom_input: inputVal })
+        });
+        const data = await res.json();
+        const others = componentResults.filter(r => r.component !== activeComponentId);
+        componentResults = [...(data.results || []), ...others];
+        updateGlobalCounters();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runIntegrationWorkflow(wfId) {
+      try {
+        const res = await fetch('/api/qa/integration/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflow_id: wfId })
+        });
+        const data = await res.json();
+        integrationResults[wfId] = data;
+        renderSidebar();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runAllIntegration() {
+      try {
+        const res = await fetch('/api/qa/integration/run-all', { method: 'POST' });
+        const data = await res.json();
+        for (const item of data.workflows || []) {
+          integrationResults[item.workflow_id] = item;
+        }
+        renderSidebar();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runAgentLoopBehavior(bCode) {
+      try {
+        const res = await fetch('/api/qa/agent-loop/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ behavior_code: bCode })
+        });
+        const data = await res.json();
+        agentLoopResults[bCode] = data;
+        renderSidebar();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runAllAgentLoop() {
+      try {
+        const res = await fetch('/api/qa/agent-loop/run-all', { method: 'POST' });
+        const data = await res.json();
+        for (const trace of data.traces || []) {
+          agentLoopResults[trace.behavior_code] = trace;
+        }
+        renderSidebar();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runArenaPrompt() {
+      const promptText = document.getElementById('arena-prompt-text').value;
+      const targetItem = arenaPrompts.find(p => p.id === activePromptId);
+      try {
+        const res = await fetch('/api/qa/arena/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptText,
+            prompt_id: activePromptId,
+            category_id: targetItem ? targetItem.category_id : undefined,
+            category_name: targetItem ? targetItem.category : undefined,
+            expected_outcomes: targetItem ? targetItem.expected_outcomes : undefined
+          })
+        });
+        arenaResult = await res.json();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function runArenaBatch() {
+      try {
+        const res = await fetch('/api/qa/arena/run-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          arenaResult = data.results[0];
+        }
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    async function fetchReport(type) {
+      activeReportType = type;
+      try {
+        const res = await fetch(`/api/qa/reports/${type}?format=markdown`);
+        reportContent = await res.text();
+        renderStage();
+      } catch (e) { console.error(e); }
+    }
+
+    function executeCurrentSectionAll() {
+      if (activeTab === 'components') runAllComponentSuites();
+      else if (activeTab === 'integration') runAllIntegration();
+      else if (activeTab === 'agentloop') runAllAgentLoop();
+      else if (activeTab === 'arena') runArenaBatch();
+    }
+
+    function updateGlobalCounters() {
+      const p = componentResults.filter(r => r.status === 'PASS').length;
+      const part = componentResults.filter(r => r.status === 'PARTIAL').length;
+      const m = componentResults.filter(r => r.status === 'MOCKED').length;
+      const f = componentResults.filter(r => r.status === 'FAIL').length;
+      const badge = document.getElementById('global-stats-badge');
+      if (badge) {
+        badge.innerHTML = `<span style="color:#10b981;font-weight:700">${p} PASS</span> | <span style="color:#f59e0b;font-weight:700">${part} PARTIAL</span> | <span style="color:#a855f7;font-weight:700">${m} MOCKED</span> | <span style="color:#ef4444;font-weight:700">${f} FAIL</span>`;
+      }
+    }
+
+    function getBadgeHtml(status) {
+      const s = status || 'UNVERIFIED';
+      return `<span class="badge-pill badge-${s.toLowerCase()}">${s}</span>`;
+    }
+
+    // -------------------------------------------------------------
+    // Render Functions
+    // -------------------------------------------------------------
+    function renderSidebar() {
+      const titleEl = document.getElementById('sidebar-section-title');
+      const listEl = document.getElementById('sidebar-items-list');
+      const actionBtn = document.getElementById('sidebar-action-btn');
+
+      if (activeTab === 'components') {
+        titleEl.innerText = `Components (${inventory.length})`;
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.innerText = '▶ Run All';
+        listEl.innerHTML = inventory.map(c => `
+          <div class="nav-item ${c.id === activeComponentId ? 'active' : ''}" onclick="selectComponent('${c.id}')">
+            <div class="item-title">
+              <span>${c.name}</span>
+              ${getBadgeHtml(c.current_status)}
+            </div>
+            <div class="item-desc" style="font-family: monospace;">${c.module}</div>
+          </div>
+        `).join('');
+      } else if (activeTab === 'integration') {
+        titleEl.innerText = `Workflows (${integrationWorkflows.length})`;
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.innerText = '▶ Run All 6';
+        listEl.innerHTML = integrationWorkflows.map(wf => {
+          const res = integrationResults[wf.id];
+          return `
+            <div class="nav-item ${wf.id === activeWorkflowId ? 'active' : ''}" onclick="selectIntegrationWorkflow('${wf.id}')">
+              <div class="item-title">
+                <span style="font-family: monospace; color: #22d3ee;">${wf.id}</span>
+                ${res ? getBadgeHtml(res.status) : '<span class="badge-pill badge-unverified">READY</span>'}
+              </div>
+              <div style="font-size: 12px; font-weight: 600; color: #e2e8f0; margin-top: 2px;">${wf.name}</div>
+            </div>
+          `;
+        }).join('');
+      } else if (activeTab === 'agentloop') {
+        titleEl.innerText = `Behaviors (A–L)`;
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.innerText = '▶ Run All 12';
+        listEl.innerHTML = behaviors.map(b => {
+          const tr = agentLoopResults[b.code];
+          return `
+            <div class="nav-item ${b.code === activeBehaviorCode ? 'active' : ''}" onclick="selectAgentBehavior('${b.code}')">
+              <div class="item-title">
+                <span style="font-family: monospace; color: #22d3ee;">Behavior ${b.code}</span>
+                ${tr ? getBadgeHtml(tr.status) : '<span class="badge-pill badge-unverified">READY</span>'}
+              </div>
+              <div style="font-size: 12px; font-weight: 600; color: #e2e8f0; margin-top: 2px;">${b.name}</div>
+            </div>
+          `;
+        }).join('');
+      } else if (activeTab === 'arena') {
+        titleEl.innerText = `14 Categories`;
+        actionBtn.style.display = 'inline-flex';
+        actionBtn.innerText = '▶ Run All 14';
+        listEl.innerHTML = arenaPrompts.map(p => `
+          <div class="nav-item ${p.id === activePromptId ? 'active' : ''}" onclick="selectArenaPrompt('${p.id}')">
+            <div class="item-title">
+              <span style="font-family: monospace; color: #22d3ee;">${p.id}</span>
+            </div>
+            <div style="font-size: 12px; font-weight: 600; color: #e2e8f0; margin-top: 2px;">${p.category}</div>
+          </div>
+        `).join('');
+      } else if (activeTab === 'reports') {
+        titleEl.innerText = `Specialized Reports (6)`;
+        actionBtn.style.display = 'none';
+        const reps = [
+          { id: 'component', name: '1. Component Test Report' },
+          { id: 'integration', name: '2. Integration Test Report' },
+          { id: 'agent_loop', name: '3. Agent Loop Test Report' },
+          { id: 'prompt_arena', name: '4. Prompt Arena Report' },
+          { id: 'authenticity', name: '5. Authenticity & Mock Audit' },
+          { id: 'readiness', name: '6. Overall Project Readiness' },
+        ];
+        listEl.innerHTML = reps.map(r => `
+          <div class="nav-item ${r.id === activeReportType ? 'active' : ''}" onclick="fetchReport('${r.id}')">
+            <div style="font-size: 12px; font-weight: 600; color: #e2e8f0;">${r.name}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function selectComponent(id) {
+      activeComponentId = id;
+      renderSidebar();
+      renderStage();
+    }
+    function selectIntegrationWorkflow(id) {
+      activeWorkflowId = id;
+      renderSidebar();
+      renderStage();
+    }
+    function selectAgentBehavior(code) {
+      activeBehaviorCode = code;
+      renderSidebar();
+      renderStage();
+    }
+    function selectArenaPrompt(id) {
+      activePromptId = id;
+      const target = arenaPrompts.find(p => p.id === id);
+      if (target) {
+        currentArenaPrompt = target.prompt;
+        const textarea = document.getElementById('arena-prompt-text');
+        if (textarea) textarea.value = target.prompt;
+      }
+      renderSidebar();
+    }
+
+    function renderStage() {
+      const stage = document.getElementById('stage-viewport');
+
+      if (activeTab === 'components') {
+        const activeComp = inventory.find(c => c.id === activeComponentId);
+        const tests = componentResults.filter(r => r.component === activeComponentId);
+
+        stage.innerHTML = `
+          ${activeComp ? `
+            <div class="card">
+              <div class="card-title">
+                <div>
+                  <span style="font-size: 16px; color: white;">${activeComp.name}</span>
+                  ${getBadgeHtml(activeComp.current_status)}
+                </div>
+                <button class="btn btn-primary" onclick="runActiveComponent()">▶ Execute Component Suite</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">${activeComp.description}</p>
+              <div style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); padding: 8px 12px; border-radius: 6px; font-size: 11px; color: #d8b4fe; font-family: monospace;">
+                <b>Audit Finding:</b> ${activeComp.known_findings}
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; margin-top: 12px;">
+                <label style="font-size: 12px; font-weight: 600;">Custom Test Input:</label>
+                <input type="text" id="comp-custom-input" class="form-input" style="flex:1;" value="${SAMPLE_INPUTS[activeComp.id] || ''}">
+                <button class="btn btn-secondary" onclick="document.getElementById('comp-custom-input').value = '${SAMPLE_INPUTS[activeComp.id] || ''}'">Reset</button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="card">
+            <div class="card-title">
+              <span>Empirical Black-Box Test Results (${tests.length})</span>
+            </div>
+            ${tests.map(t => `
+              <div class="test-card status-${t.status}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-family: monospace; font-weight: 700; font-size: 12px;">${t.test_id}</span>
+                    ${getBadgeHtml(t.status)}
+                    <span style="font-family: monospace; font-size: 11px; color: var(--text-muted);">[${t.category}]</span>
+                  </div>
+                  <span style="font-family: monospace; font-size: 11px; color: #22d3ee;">⏱ ${t.execution_time_ms} ms</span>
+                </div>
+                <div style="font-size: 12px; color: #e2e8f0; font-weight: 500;">
+                  <b>${t.component}:</b> ${t.description}
+                </div>
+                <div style="background: #030712; border: 1px solid #1e293b; padding: 10px; border-radius: 6px; font-size: 12px; color: #cbd5e1;">
+                  <b style="color: #22d3ee; font-size: 10px; text-transform: uppercase;">Empirical Evidence:</b><br/>
+                  ${t.evidence}
+                </div>
+                ${t.failure_explanation ? `
+                  <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 8px; border-radius: 6px; font-size: 11px; color: #fca5a5;">
+                    <b>Root Cause:</b> ${t.failure_explanation}<br/>
+                    ${t.recommended_correction ? `<b>Correction:</b> ${t.recommended_correction}` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (activeTab === 'integration') {
+        const wf = integrationWorkflows.find(w => w.id === activeWorkflowId);
+        const res = integrationResults[activeWorkflowId];
+
+        stage.innerHTML = `
+          ${wf ? `
+            <div class="card">
+              <div class="card-title">
+                <div>
+                  <span style="font-family: monospace; color: #22d3ee;">${wf.id}:</span>
+                  <span style="font-size: 16px; color: white;">${wf.name}</span>
+                  ${res ? getBadgeHtml(res.status) : ''}
+                </div>
+                <button class="btn btn-primary" onclick="runIntegrationWorkflow('${wf.id}')">▶ Execute Pipeline</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted);">${wf.description}</p>
+              ${res ? `
+                <div style="display: flex; gap: 20px; margin-top: 10px; font-family: monospace; font-size: 11px; border-top: 1px solid #1e293b; padding-top: 8px;">
+                  <div>Latency: <b style="color: #22d3ee;">${res.execution_time_ms} ms</b></div>
+                  <div>Lineage Verified: <b style="color: ${res.data_lineage_verified ? '#10b981' : '#ef4444'}">${res.data_lineage_verified ? 'VERIFIED' : 'FAILED'}</b></div>
+                  <div>Total Stages: <b>${res.total_stages}</b></div>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          ${res ? `
+            <div class="card">
+              <div class="card-title"><span>Pipeline Stage Execution & Data Transfer Verification</span></div>
+              ${res.stages.map(st => `
+                <div class="test-card status-${st.status === 'SUCCESS' ? 'PASS' : 'FAIL'}">
+                  <div style="display: flex; justify-content: space-between;">
+                    <div>
+                      <b style="color: #22d3ee;">Stage ${st.stage_id}:</b>
+                      <span style="font-weight: 600;">${st.stage_name}</span>
+                      <span style="font-family: monospace; font-size: 10px; color: #94a3b8;">(${st.component})</span>
+                    </div>
+                    <div>
+                      <span style="font-family: monospace; font-size: 10px; color: #22d3ee;">⏱ ${st.latency_ms} ms</span>
+                      <span class="badge-pill ${st.schema_valid ? 'badge-pass' : 'badge-fail'}">${st.schema_valid ? 'SCHEMA OK' : 'SCHEMA BAD'}</span>
+                      ${st.data_loss_detected ? '<span class="badge-pill badge-fail">DATA LOSS</span>' : ''}
+                    </div>
+                  </div>
+                  <div style="background: #030712; padding: 8px; border-radius: 6px; font-size: 11px; color: #cbd5e1;">
+                    <b>Stage Audit:</b> ${st.notes}
+                  </div>
+                  <div class="grid-2">
+                    <div>
+                      <span style="font-size: 10px; font-family: monospace; text-transform: uppercase;">Upstream Input:</span>
+                      <div class="code-view">${JSON.stringify(st.raw_input, null, 2)}</div>
+                    </div>
+                    <div>
+                      <span style="font-size: 10px; font-family: monospace; text-transform: uppercase;">Downstream Output:</span>
+                      <div class="code-view">${JSON.stringify(st.raw_output, null, 2)}</div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div class="card" style="text-align: center; color: var(--text-muted); padding: 40px;">
+              Click "Execute Pipeline" to run this multi-component workflow.
+            </div>
+          `}
+        `;
+      } else if (activeTab === 'agentloop') {
+        const b = behaviors.find(item => item.code === activeBehaviorCode);
+        const tr = agentLoopResults[activeBehaviorCode];
+
+        stage.innerHTML = `
+          ${b ? `
+            <div class="card">
+              <div class="card-title">
+                <div>
+                  <span style="font-family: monospace; color: #22d3ee;">Behavior ${b.code}:</span>
+                  <span style="font-size: 16px; color: white;">${b.name}</span>
+                  ${tr ? getBadgeHtml(tr.status) : ''}
+                </div>
+                <button class="btn btn-primary" onclick="runAgentLoopBehavior('${b.code}')">▶ Execute Agent Loop Test</button>
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted);">${b.description}</p>
+              ${tr ? `
+                <div style="display: flex; gap: 20px; margin-top: 10px; font-family: monospace; font-size: 11px; border-top: 1px solid #1e293b; padding-top: 8px;">
+                  <div>Latency: <b style="color: #22d3ee;">${tr.total_latency_ms} ms</b></div>
+                  <div>Iterations: <b>${tr.iteration_count}</b></div>
+                  <div>Termination: <b style="color: ${tr.terminated_correctly ? '#10b981' : '#ef4444'}">${tr.terminated_correctly ? 'NORMAL' : 'LOOP'}</b></div>
+                  <div>Hallucination: <b style="color: ${tr.hallucination_detected ? '#ef4444' : '#10b981'}">${tr.hallucination_detected ? 'DETECTED' : 'NONE'}</b></div>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          ${tr ? `
+            <div class="card">
+              <div style="font-size: 12px; font-family: monospace; margin-bottom: 10px;">
+                <b style="color: #22d3ee;">Natural-Language User Prompt:</b> "${tr.user_prompt}"
+              </div>
+              <div class="card-title"><span>Observed Tool Calls & Authenticity Verification (${tr.tool_calls_observed.length})</span></div>
+              ${tr.tool_calls_observed.map(tc => `
+                <div class="test-card">
+                  <div style="display: flex; justify-content: space-between;">
+                    <div>
+                      <b style="color: #22d3ee;">${tc.tool_name}</b>
+                      <span style="font-size: 11px; color: #94a3b8;">(${tc.intent})</span>
+                    </div>
+                    <div>
+                      <span style="font-family: monospace; font-size: 10px; color: #22d3ee;">⏱ ${tc.latency_ms} ms</span>
+                      ${tc.simulated_by_agent_code ? '<span class="badge-pill badge-mocked">SIMULATED (15-16ms)</span>' : '<span class="badge-pill badge-pass">GENUINE</span>'}
+                    </div>
+                  </div>
+                  <div class="code-view">${JSON.stringify(tc.raw_result_summary, null, 2)}</div>
+                </div>
+              `).join('')}
+              <div style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); padding: 10px; border-radius: 6px; font-size: 11px; color: #d8b4fe; font-family: monospace; margin-top: 10px;">
+                <b>Independent Behavior Notes:</b> ${tr.verification_notes}
+              </div>
+              <div style="margin-top: 12px;">
+                <span style="font-size: 11px; font-family: monospace; text-transform: uppercase;">Final Synthesized Text:</span>
+                <div style="background: #020617; border: 1px solid #1e293b; padding: 10px; border-radius: 6px; font-size: 12px; color: #e2e8f0; margin-top: 4px; white-space: pre-wrap;">
+                  ${tr.final_response_text}
+                </div>
+              </div>
+            </div>
+          ` : `
+            <div class="card" style="text-align: center; color: var(--text-muted); padding: 40px;">
+              Click "Execute Agent Loop Test" to inspect live tool calls and loop behavior.
+            </div>
+          `}
+        `;
+      } else if (activeTab === 'arena') {
+        stage.innerHTML = `
+          <div class="card">
+            <div class="card-title">
+              <span>Natural-Language Environmental Prompt (Unmodified Submission)</span>
+              <button class="btn btn-primary" onclick="runArenaPrompt()">▶ Submit Exact Prompt to Real Agent</button>
+            </div>
+            <textarea id="arena-prompt-text" class="form-input" rows="3" style="width: 100%; resize: none;">${currentArenaPrompt}</textarea>
+          </div>
+
+          ${arenaResult ? `
+            <div class="card">
+              <div class="card-title">
+                <span>Visual Chronological Execution Timeline (Module 5)</span>
+                <span style="font-family: monospace; color: #22d3ee;">⏱ ${arenaResult.execution_time_ms} ms</span>
+              </div>
+              <div style="padding-left: 10px;">
+                ${arenaResult.timeline.map(st => `
+                  <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <b style="font-family: monospace; color: #22d3ee;">Step ${st.step_number}: ${st.stage}</b>
+                      <span style="font-family: monospace; font-size: 10px; color: #64748b;">${st.timestamp}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #e2e8f0; margin-top: 2px;">${st.label}</div>
+                    ${st.details ? `<div class="code-view" style="margin-top: 4px;">${JSON.stringify(st.details, null, 2)}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">
+                <span>Independent Evaluation Engine: 10 Deterministic Criteria (Module 4)</span>
+                ${getBadgeHtml(arenaResult.evaluation.overall_status)}
+              </div>
+              <div class="grid-2">
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>1. Understood Objective</span>
+                    <span style="color: ${arenaResult.evaluation.understood_objective ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.understood_objective ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div>${arenaResult.evaluation.understood_rationale}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>2. Correct Tools Selected</span>
+                    <span style="color: ${arenaResult.evaluation.correct_tools_selected ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.correct_tools_selected ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div style="font-family: monospace;">Tools: ${arenaResult.evaluation.tools_selected.join(', ') || 'None'}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>3. Tools Genuinely Executed</span>
+                    <span style="color: ${arenaResult.evaluation.tools_genuinely_executed ? '#10b981' : '#a855f7'}">${arenaResult.evaluation.tools_genuinely_executed ? 'GENUINE' : 'SIMULATED'}</span>
+                  </div>
+                  <div style="font-family: monospace; color: #d8b4fe;">${arenaResult.evaluation.execution_authenticity_notes}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>4. Correct Arguments Supplied</span>
+                    <span style="color: ${arenaResult.evaluation.correct_arguments_supplied ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.correct_arguments_supplied ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div>Validated against parameter schemas.</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>5. Tool Results Used in Answer</span>
+                    <span style="color: ${arenaResult.evaluation.tool_results_used_in_answer ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.tool_results_used_in_answer ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div>Downstream answer reflects tool outputs.</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>6. Final Answer Matches Evidence</span>
+                    <span style="color: ${arenaResult.evaluation.final_answer_matches_evidence ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.final_answer_matches_evidence ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div>Deterministic factual consistency check.</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>7. Geographical Outputs Accurate</span>
+                    <span style="color: ${arenaResult.evaluation.geographical_outputs_accurate ? '#10b981' : '#f59e0b'}">${arenaResult.evaluation.geographical_outputs_accurate ? 'ACCURATE' : 'N/A'}</span>
+                  </div>
+                  <div style="font-family: monospace;">${JSON.stringify(arenaResult.evaluation.geographical_details || 'No spatial layer')}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>8. Scientific Claims Qualified</span>
+                    <span style="color: ${arenaResult.evaluation.scientific_claims_qualified ? '#10b981' : '#ef4444'}">${arenaResult.evaluation.scientific_claims_qualified ? 'YES' : 'NO'}</span>
+                  </div>
+                  <div>${arenaResult.evaluation.causal_disclaimer_present ? 'Causal disclaimer present.' : 'No disclaimer.'}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>9. Fabricated Results Produced</span>
+                    <span style="color: ${arenaResult.evaluation.fabricated_results_detected ? '#ef4444' : '#10b981'}">${arenaResult.evaluation.fabricated_results_detected ? 'FABRICATED' : 'NONE'}</span>
+                  </div>
+                  <div>${arenaResult.evaluation.fabricated_details || 'Verified against references.'}</div>
+                </div>
+                <div class="crit-card">
+                  <div class="crit-header">
+                    <span>10. All Outcomes Achieved</span>
+                    <span style="color: ${arenaResult.evaluation.all_required_outcomes_achieved ? '#10b981' : '#f59e0b'}">${arenaResult.evaluation.all_required_outcomes_achieved ? 'ACHIEVED' : 'PARTIAL'}</span>
+                  </div>
+                  <div>Benchmark outcomes verified.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><span>Actual Real Agent Response Text</span></div>
+              <div style="background: #020617; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; font-size: 12px; color: #f1f5f9; white-space: pre-wrap;">
+                ${arenaResult.actual_response_text}
+              </div>
+            </div>
+          ` : ''}
+        `;
+      } else if (activeTab === 'reports') {
+        stage.innerHTML = `
+          <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="card-title">
+              <span>Specialized Report: ${activeReportType.toUpperCase()}</span>
+              <a href="/api/qa/reports/${activeReportType}?format=markdown" target="_blank" class="btn btn-secondary">⬇ Download .md</a>
+            </div>
+            <div class="code-view" style="flex: 1; max-height: none; font-size: 12px; line-height: 1.6; color: #cbd5e1;">
+              ${reportContent || 'Select a report on the left sidebar to inspect.'}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Run initialization
+    init();
+  </script>
+</body>
+</html>
